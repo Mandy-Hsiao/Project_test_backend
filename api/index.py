@@ -1,8 +1,20 @@
 import os
-
+from pathlib import Path
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from pydantic import BaseModel
 from google import genai
+
+from rag.rag_answer_simple import get_rag_answer
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+ENV_PATH = BASE_DIR / ".env"
+
+print("BASE_DIR =", BASE_DIR)
+print("ENV_PATH =", ENV_PATH)
+print("ENV EXISTS =", ENV_PATH.exists())
+
+load_dotenv(dotenv_path=ENV_PATH, override=True)
 
 
 # =========================================================
@@ -22,10 +34,11 @@ app = FastAPI(
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+print("GEMINI KEY FOUND =", bool(GEMINI_API_KEY))
 
 if not GEMINI_API_KEY:
     raise RuntimeError(
-        "找不到 GEMINI_API_KEY，請至 Vercel Environment Variables 設定。"
+        f"找不到 GEMINI_API_KEY，目前尋找位置：{ENV_PATH}"
     )
 
 
@@ -112,12 +125,10 @@ def home():
 # 7. Chat API
 # =========================================================
 
-@app.post("/api/chat")
+@app.post("/chat")
 def chat(data: QuestionRequest):
 
-    answer = ask_gemini(data.question)
+    result = get_rag_answer(data.question)
 
-    return {
-        "answer": answer
-    }
+    return result
 
