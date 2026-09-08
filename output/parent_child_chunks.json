@@ -1,0 +1,652 @@
+[
+  {
+    "parent": {
+      "parent_id": "install_supabase_p1_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 1,
+      "page_end": 1,
+      "section_title": "環境設定",
+      "token_count": 8,
+      "text": "環境設定"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p1_parent1_child1",
+        "parent_id": "install_supabase_p1_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 1,
+        "section_title": "環境設定",
+        "content_type": "text",
+        "token_count": 8,
+        "text": "環境設定"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p1_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 1,
+      "page_end": 1,
+      "section_title": "註冊及專案設定",
+      "token_count": 32,
+      "text": "註冊及專案設定\n要使用Supabase，先到\n登入，點選「Sign in」"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p1_parent1_child1",
+        "parent_id": "install_supabase_p1_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 1,
+        "section_title": "註冊及專案設定",
+        "content_type": "text",
+        "token_count": 32,
+        "text": "註冊及專案設定\n要使用Supabase，先到\n登入，點選「Sign in」"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p1_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 1,
+      "page_end": 1,
+      "section_title": "supabase.com",
+      "token_count": 28,
+      "text": "supabase.com\n可以利用GitHub帳號登入，或者新建一個帳號:"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p1_parent1_child1",
+        "parent_id": "install_supabase_p1_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 1,
+        "section_title": "supabase.com",
+        "content_type": "text",
+        "token_count": 28,
+        "text": "supabase.com\n可以利用GitHub帳號登入，或者新建一個帳號:"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p1_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 1,
+      "page_end": 1,
+      "section_title": "2026/8/30 中午12:44",
+      "token_count": 11,
+      "text": "2026/8/30 中午12:44"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p1_parent1_child1",
+        "parent_id": "install_supabase_p1_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 1,
+        "section_title": "2026/8/30 中午12:44",
+        "content_type": "text",
+        "token_count": 11,
+        "text": "2026/8/30 中午12:44"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p1_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 1,
+      "page_end": 1,
+      "section_title": "環境設定",
+      "token_count": 36,
+      "text": "環境設定\nhttps://fju-benwu.notion.site/26704449845d80158284da1a0feacbe2"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p1_parent1_child1",
+        "parent_id": "install_supabase_p1_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 1,
+        "section_title": "環境設定",
+        "content_type": "text",
+        "token_count": 36,
+        "text": "環境設定\nhttps://fju-benwu.notion.site/26704449845d80158284da1a0feacbe2"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p1_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 1,
+      "page_end": 1,
+      "section_title": "1/6",
+      "token_count": 3,
+      "text": "1/6"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p1_parent1_child1",
+        "parent_id": "install_supabase_p1_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 1,
+        "section_title": "1/6",
+        "content_type": "text",
+        "token_count": 3,
+        "text": "1/6"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p2_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 2,
+      "page_end": 2,
+      "section_title": "",
+      "token_count": 35,
+      "text": "老師以GitHub帳號登入，先授權Supabase取得帳號的驗證權限:"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p2_parent1_child1",
+        "parent_id": "install_supabase_p2_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 2,
+        "section_title": "",
+        "content_type": "text",
+        "token_count": 35,
+        "text": "老師以GitHub帳號登入，先授權Supabase取得帳號的驗證權限:"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p2_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 2,
+      "page_end": 2,
+      "section_title": "2026/8/30 中午12:44",
+      "token_count": 11,
+      "text": "2026/8/30 中午12:44"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p2_parent1_child1",
+        "parent_id": "install_supabase_p2_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 2,
+        "section_title": "2026/8/30 中午12:44",
+        "content_type": "text",
+        "token_count": 11,
+        "text": "2026/8/30 中午12:44"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p2_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 2,
+      "page_end": 2,
+      "section_title": "環境設定",
+      "token_count": 36,
+      "text": "環境設定\nhttps://fju-benwu.notion.site/26704449845d80158284da1a0feacbe2"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p2_parent1_child1",
+        "parent_id": "install_supabase_p2_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 2,
+        "section_title": "環境設定",
+        "content_type": "text",
+        "token_count": 36,
+        "text": "環境設定\nhttps://fju-benwu.notion.site/26704449845d80158284da1a0feacbe2"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p2_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 2,
+      "page_end": 2,
+      "section_title": "2/6",
+      "token_count": 3,
+      "text": "2/6"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p2_parent1_child1",
+        "parent_id": "install_supabase_p2_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 2,
+        "section_title": "2/6",
+        "content_type": "text",
+        "token_count": 3,
+        "text": "2/6"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p3_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 3,
+      "page_end": 3,
+      "section_title": "接下來產生一個新的organization:",
+      "token_count": 14,
+      "text": "接下來產生一個新的organization:"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p3_parent1_child1",
+        "parent_id": "install_supabase_p3_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 3,
+        "section_title": "接下來產生一個新的organization:",
+        "content_type": "text",
+        "token_count": 14,
+        "text": "接下來產生一個新的organization:"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p3_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 3,
+      "page_end": 3,
+      "section_title": "2026/8/30 中午12:44",
+      "token_count": 11,
+      "text": "2026/8/30 中午12:44"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p3_parent1_child1",
+        "parent_id": "install_supabase_p3_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 3,
+        "section_title": "2026/8/30 中午12:44",
+        "content_type": "text",
+        "token_count": 11,
+        "text": "2026/8/30 中午12:44"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p3_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 3,
+      "page_end": 3,
+      "section_title": "環境設定",
+      "token_count": 36,
+      "text": "環境設定\nhttps://fju-benwu.notion.site/26704449845d80158284da1a0feacbe2"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p3_parent1_child1",
+        "parent_id": "install_supabase_p3_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 3,
+        "section_title": "環境設定",
+        "content_type": "text",
+        "token_count": 36,
+        "text": "環境設定\nhttps://fju-benwu.notion.site/26704449845d80158284da1a0feacbe2"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p3_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 3,
+      "page_end": 3,
+      "section_title": "3/6",
+      "token_count": 3,
+      "text": "3/6"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p3_parent1_child1",
+        "parent_id": "install_supabase_p3_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 3,
+        "section_title": "3/6",
+        "content_type": "text",
+        "token_count": 3,
+        "text": "3/6"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p4_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 4,
+      "page_end": 4,
+      "section_title": "",
+      "token_count": 20,
+      "text": "接下來在Organization下，產生一個新的專案:"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p4_parent1_child1",
+        "parent_id": "install_supabase_p4_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 4,
+        "section_title": "",
+        "content_type": "text",
+        "token_count": 20,
+        "text": "接下來在Organization下，產生一個新的專案:"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p4_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 4,
+      "page_end": 4,
+      "section_title": "2026/8/30 中午12:44",
+      "token_count": 11,
+      "text": "2026/8/30 中午12:44"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p4_parent1_child1",
+        "parent_id": "install_supabase_p4_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 4,
+        "section_title": "2026/8/30 中午12:44",
+        "content_type": "text",
+        "token_count": 11,
+        "text": "2026/8/30 中午12:44"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p4_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 4,
+      "page_end": 4,
+      "section_title": "環境設定",
+      "token_count": 36,
+      "text": "環境設定\nhttps://fju-benwu.notion.site/26704449845d80158284da1a0feacbe2"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p4_parent1_child1",
+        "parent_id": "install_supabase_p4_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 4,
+        "section_title": "環境設定",
+        "content_type": "text",
+        "token_count": 36,
+        "text": "環境設定\nhttps://fju-benwu.notion.site/26704449845d80158284da1a0feacbe2"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p4_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 4,
+      "page_end": 4,
+      "section_title": "4/6",
+      "token_count": 3,
+      "text": "4/6"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p4_parent1_child1",
+        "parent_id": "install_supabase_p4_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 4,
+        "section_title": "4/6",
+        "content_type": "text",
+        "token_count": 3,
+        "text": "4/6"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p5_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 5,
+      "page_end": 5,
+      "section_title": "開好專案了",
+      "token_count": 6,
+      "text": "開好專案了"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p5_parent1_child1",
+        "parent_id": "install_supabase_p5_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 5,
+        "section_title": "開好專案了",
+        "content_type": "text",
+        "token_count": 6,
+        "text": "開好專案了"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p5_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 5,
+      "page_end": 5,
+      "section_title": "2026/8/30 中午12:44",
+      "token_count": 11,
+      "text": "2026/8/30 中午12:44"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p5_parent1_child1",
+        "parent_id": "install_supabase_p5_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 5,
+        "section_title": "2026/8/30 中午12:44",
+        "content_type": "text",
+        "token_count": 11,
+        "text": "2026/8/30 中午12:44"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p5_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 5,
+      "page_end": 5,
+      "section_title": "環境設定",
+      "token_count": 36,
+      "text": "環境設定\nhttps://fju-benwu.notion.site/26704449845d80158284da1a0feacbe2"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p5_parent1_child1",
+        "parent_id": "install_supabase_p5_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 5,
+        "section_title": "環境設定",
+        "content_type": "text",
+        "token_count": 36,
+        "text": "環境設定\nhttps://fju-benwu.notion.site/26704449845d80158284da1a0feacbe2"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p5_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 5,
+      "page_end": 5,
+      "section_title": "5/6",
+      "token_count": 3,
+      "text": "5/6"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p5_parent1_child1",
+        "parent_id": "install_supabase_p5_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 5,
+        "section_title": "5/6",
+        "content_type": "text",
+        "token_count": 3,
+        "text": "5/6"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p6_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 6,
+      "page_end": 6,
+      "section_title": "左邊的Menu可以看Supabase的主要功能:",
+      "token_count": 15,
+      "text": "左邊的Menu可以看Supabase的主要功能:"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p6_parent1_child1",
+        "parent_id": "install_supabase_p6_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 6,
+        "section_title": "左邊的Menu可以看Supabase的主要功能:",
+        "content_type": "text",
+        "token_count": 15,
+        "text": "左邊的Menu可以看Supabase的主要功能:"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p6_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 6,
+      "page_end": 6,
+      "section_title": "2026/8/30 中午12:44",
+      "token_count": 11,
+      "text": "2026/8/30 中午12:44"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p6_parent1_child1",
+        "parent_id": "install_supabase_p6_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 6,
+        "section_title": "2026/8/30 中午12:44",
+        "content_type": "text",
+        "token_count": 11,
+        "text": "2026/8/30 中午12:44"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p6_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 6,
+      "page_end": 6,
+      "section_title": "環境設定",
+      "token_count": 36,
+      "text": "環境設定\nhttps://fju-benwu.notion.site/26704449845d80158284da1a0feacbe2"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p6_parent1_child1",
+        "parent_id": "install_supabase_p6_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 6,
+        "section_title": "環境設定",
+        "content_type": "text",
+        "token_count": 36,
+        "text": "環境設定\nhttps://fju-benwu.notion.site/26704449845d80158284da1a0feacbe2"
+      }
+    ]
+  },
+  {
+    "parent": {
+      "parent_id": "install_supabase_p6_parent1",
+      "file_name": "install_supabase.pdf",
+      "storage_path": "install_supabase.pdf",
+      "page_start": 6,
+      "page_end": 6,
+      "section_title": "6/6",
+      "token_count": 3,
+      "text": "6/6"
+    },
+    "children": [
+      {
+        "child_id": "install_supabase_p6_parent1_child1",
+        "parent_id": "install_supabase_p6_parent1",
+        "file_name": "install_supabase.pdf",
+        "storage_path": "install_supabase.pdf",
+        "page": 6,
+        "section_title": "6/6",
+        "content_type": "text",
+        "token_count": 3,
+        "text": "6/6"
+      }
+    ]
+  }
+]

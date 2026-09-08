@@ -18,7 +18,7 @@ export async function login(formData: FormData) {
 
   if (error) {
     // 登入失敗時帶錯誤訊息重定向回登入頁
-    redirect('/login?error=帳號或密碼錯誤，請重新輸入')
+    redirect(`/login?error=${encodeURIComponent('帳號或密碼錯誤')}`)
   }
 
   // 登入成功，更新快取並跳轉回首頁

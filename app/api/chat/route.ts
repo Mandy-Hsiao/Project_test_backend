@@ -17,8 +17,11 @@ export async function POST(request: Request) {
       )
     }
 
-    // 轉發給獨立部署的 Python FastAPI（Gemini）
-    const response = await fetch(`${apiUrl}/api/chat`, {
+    // 去除結尾斜線，確保路徑組合正常
+    const cleanUrl = apiUrl.replace(/\/$/, '')
+
+    // 轉發給獨立部署的 Python FastAPI（對齊 Swagger 的 /chat）
+    const response = await fetch(`${cleanUrl}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question }),

@@ -11,6 +11,7 @@ interface AdminDashboardClientProps {
   isManager?: boolean
   department: string
   userRole: 'admin' | 'manager' | 'user'
+  initialMembers?: any[] // 接收伺服器端傳來的同仁名單，解決報錯
 }
 
 export default function AdminDashboardClient({
@@ -19,11 +20,13 @@ export default function AdminDashboardClient({
   isManager = false,
   department,
   userRole,
+  initialMembers = [],
 }: AdminDashboardClientProps) {
   const [activeTab, setActiveTab] = useState<'global' | 'department' | 'personal' | 'users'>(
     isAdmin ? 'global' : isManager ? 'department' : 'personal',
   )
 
+  // ③ 角色分級頁籤：主管 (Manager) 也能查看本部門同仁名單
   const tabs: Array<{
     id: 'global' | 'department' | 'personal' | 'users'
     label: string
@@ -32,7 +35,11 @@ export default function AdminDashboardClient({
     { id: 'global', label: '全域數據', visible: isAdmin },
     { id: 'department', label: '部門分析', visible: isManager },
     { id: 'personal', label: '個人歷史', visible: true },
-    { id: 'users', label: '用戶管理', visible: isAdmin },
+    {
+      id: 'users',
+      label: isAdmin ? '全域用戶管理' : '部門同仁名單',
+      visible: isAdmin || isManager,
+    },
   ]
 
   const visibleTabs = tabs.filter((t) => t.visible)
@@ -57,19 +64,17 @@ export default function AdminDashboardClient({
           </div>
         </div>
         <div className="flex items-center gap-3 text-xs">
-          <span className="text-slate-400">
-            {user.email}
-          </span>
+          <span className="text-slate-400">{user.email}</span>
           <Link
             href="/"
             className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 transition text-slate-200"
           >
-            ← 返回
+            ← 返回對話
           </Link>
         </div>
       </header>
 
-      {/* Tab 導航 */}
+      {/* Tab 導航列 */}
       <div className="border-b border-slate-800 bg-slate-900 px-6">
         <div className="flex gap-1">
           {visibleTabs.map((tab) => (
@@ -90,8 +95,13 @@ export default function AdminDashboardClient({
 
       {/* 內容區域 */}
       <main className="flex-1 p-6 max-w-6xl mx-auto w-full">
-        {activeTab === 'users' && isAdmin ? (
-          <AdminUserManagement />
+        {activeTab === 'users' ? (
+          <AdminUserManagement
+            isAdmin={isAdmin}
+            isManager={isManager}
+            currentDepartment={department}
+            initialMembers={initialMembers}
+          />
         ) : (
           <AnalyticsPanel
             scope={activeTab as 'global' | 'department' | 'personal'}

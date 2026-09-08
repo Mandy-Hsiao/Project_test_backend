@@ -12,9 +12,10 @@ export default async function AdminDashboardPage() {
     redirect('/login')
   }
 
+  // 1. 查詢當前使用者的身分、部門與姓名
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('role, department')
+    .select('role, department, em_name')
     .eq('id', user.id)
     .single()
 
@@ -22,20 +23,42 @@ export default async function AdminDashboardPage() {
     console.error('[Admin] Profile query error:', profileError)
   }
 
-  // 查詢失敗時安全預設為權限最低的「一般同仁」，
-  // 避免像先前那樣把查詢失敗的使用者當成 manager 處理而外洩部門數據
-  const role = (profile?.role as 'admin' | 'manager' | 'user') || 'user'
+  const role = (profile?.role as 'admin' | 'manager' | 'user' | 'resigned') || 'user'
   const department = profile?.department || '未分配部門'
 
-  // 所有登入使用者（admin / manager / user）都可以進入後台頁面，
-  // 實際能看到哪些頁籤（全域 / 部門 / 個人歷史 / 用戶管理）由 AdminDashboardClient 依角色控制
+  // 2. 資安防護：已離職人員直接踢出後台
+  if (role === 'resigned') {
+    redirect('/')
+  }
+
+  const isAdmin = role === 'admin'
+  const isManager = role === 'manager'
+
+  // 3. 依角色權限抓取同仁名單（實作 ③ 權限分級檢視）
+  let membersQuery = supabase
+    .from('profiles')
+    .select('id, email, em_name, role, department, created_at')
+    .order('created_at', { ascending: true })
+
+  // 主管只能看自己部門的同仁，Admin 可以看全公司
+  if (isManager) {
+    membersQuery = membersQuery.eq('department', department)
+  }
+
+  const { data: members, error: membersError } = await membersQuery
+
+  if (membersError) {
+    console.error('[Admin] 取得同仁名單失敗:', membersError.message)
+  }
+
   return (
     <AdminDashboardClient
       user={user}
-      isAdmin={role === 'admin'}
-      isManager={role === 'manager'}
+      isAdmin={isAdmin}
+      isManager={isManager}
       department={department}
       userRole={role}
+      initialMembers={members || []} 
     />
   )
 }

@@ -1,16 +1,19 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
 
 export interface HistoryItem {
   id: string
   question: string
+  answer?: string | null
+  rating?: number | null
   created_at: string
 }
 
 interface SidebarProps {
   userEmail?: string
+  employeeName?: string
   userRole?: 'admin' | 'manager' | 'user' | string
   department?: string
   isAdmin?: boolean
@@ -19,11 +22,13 @@ interface SidebarProps {
   activeHistoryId?: string | null
   onSelectHistory: (item: HistoryItem) => void
   onDeleteHistory?: (e: React.MouseEvent, id: string) => void
+  onRenameHistory?: (id: string, newTitle: string) => Promise<void> // 👈 新增更名函式
   onNewChat: () => void
 }
 
 export default function Sidebar({
   userEmail,
+  employeeName,
   userRole = 'user',
   department = '',
   isAdmin,
@@ -32,17 +37,18 @@ export default function Sidebar({
   activeHistoryId,
   onSelectHistory,
   onDeleteHistory,
+  onRenameHistory,
   onNewChat,
 }: SidebarProps) {
-  // 防呆判定身分權限（轉小寫比對，避免大小寫不一致造成按鈕消失）
+  // 編輯中的狀態管理
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingText, setEditingText] = useState<string>('')
+
   const normalizedRole = userRole?.toLowerCase() || 'user'
   const checkAdmin = isAdmin || normalizedRole === 'admin'
   const checkManager = normalizedRole === 'manager'
-  // 所有登入者（員工 / 主管 / 管理員）都能進入後台，
-  // 差別只在於後台頁面裡看得到哪些頁籤（員工只會看到「個人歷史」）
   const hasDashboardAccess = true
 
-  // 格式化時間（例如：今天 14:30 或 08/30）
   const formatTime = (dateStr: string) => {
     try {
       const d = new Date(dateStr)
@@ -54,6 +60,29 @@ export default function Sidebar({
     } catch {
       return ''
     }
+  }
+
+  // 觸發開始編輯
+  const handleStartRename = (e: React.MouseEvent, item: HistoryItem) => {
+    e.stopPropagation()
+    setEditingId(item.id)
+    setEditingText(item.question)
+  }
+
+  // 儲存新標題
+  const handleSaveRename = async (e: React.MouseEvent | React.KeyboardEvent, id: string) => {
+    e.stopPropagation()
+    const trimmed = editingText.trim()
+    if (trimmed && onRenameHistory) {
+      await onRenameHistory(id, trimmed)
+    }
+    setEditingId(null)
+  }
+
+  // 取消編輯
+  const handleCancelRename = (e: React.MouseEvent | React.KeyboardEvent) => {
+    e.stopPropagation()
+    setEditingId(null)
   }
 
   return (
@@ -99,44 +128,117 @@ export default function Sidebar({
                 <div
                   key={item.id}
                   onClick={() => onSelectHistory(item)}
-                  className={`group relative flex items-center justify-between rounded-lg px-2.5 py-2.5 text-xs cursor-pointer transition ${
+                  className={`group relative flex items-center justify-between rounded-lg px-2.5 py-2 text-xs cursor-pointer transition ${
                     activeHistoryId === item.id
                       ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30 font-medium'
                       : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                   }`}
                 >
-                  <span className="truncate pr-12">💬 {item.question}</span>
-
-                  <div className="absolute right-2 flex items-center gap-1.5">
-                    {/* 時間（平常顯示） */}
-                    <span className="text-[10px] text-slate-500 group-hover:hidden">
-                      {formatTime(item.created_at)}
-                    </span>
-
-                    {/* 垃圾桶刪除按鈕（滑鼠懸浮時顯示） */}
-                    {onDeleteHistory && (
+                  {/* 若正在編輯此項目，顯示輸入框 */}
+                  {editingId === item.id ? (
+                    <div className="flex items-center gap-1 w-full" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="text"
+                        autoFocus
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveRename(e, item.id)
+                          if (e.key === 'Escape') handleCancelRename(e)
+                        }}
+                        className="flex-1 bg-slate-950 border border-blue-500 rounded px-1.5 py-0.5 text-xs text-white outline-none"
+                      />
+                      {/* 勾選儲存 */}
                       <button
-                        title="刪除此紀錄"
-                        onClick={(e) => onDeleteHistory(e, item.id)}
-                        className="hidden group-hover:flex items-center justify-center p-1 rounded text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition"
+                        title="儲存名稱"
+                        onClick={(e) => handleSaveRename(e, item.id)}
+                        className="p-1 text-emerald-400 hover:bg-emerald-500/10 rounded"
                       >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-3.5 w-3.5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
+                        ✓
                       </button>
-                    )}
-                  </div>
+                      {/* 取消 */}
+                      <button
+                        title="取消"
+                        onClick={handleCancelRename}
+                        className="p-1 text-slate-400 hover:bg-slate-700 rounded"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    /* 正常顯示狀態 */
+                    <>
+                      <div className="flex items-center gap-1.5 truncate pr-14">
+                        <span className="text-slate-500">💬</span>
+                        <span className="truncate">{item.question}</span>
+                        {item.rating === 1 && (
+                          <span className="text-[10px] text-emerald-400 shrink-0" title="已評分：滿意">
+                            👍
+                          </span>
+                        )}
+                        {item.rating === -1 && (
+                          <span className="text-[10px] text-rose-400 shrink-0" title="已評分：待改進">
+                            👎
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="absolute right-2 flex items-center gap-1">
+                        {/* 平常顯示建立時間 */}
+                        <span className="text-[10px] text-slate-500 group-hover:hidden">
+                          {formatTime(item.created_at)}
+                        </span>
+
+                        {/* 編輯名稱按鈕（滑鼠懸浮時出現） */}
+                        {onRenameHistory && (
+                          <button
+                            title="編輯名稱"
+                            onClick={(e) => handleStartRename(e, item)}
+                            className="hidden group-hover:flex items-center justify-center p-1 rounded text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-3.5 w-3.5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                              />
+                            </svg>
+                          </button>
+                        )}
+
+                        {/* 垃圾桶刪除按鈕（滑鼠懸浮時出現） */}
+                        {onDeleteHistory && (
+                          <button
+                            title="刪除此紀錄"
+                            onClick={(e) => onDeleteHistory(e, item.id)}
+                            className="hidden group-hover:flex items-center justify-center p-1 rounded text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-3.5 w-3.5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               ))
             )}
@@ -144,7 +246,7 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* 下半部：後台入口（員工/主管/管理員皆可進入，內容依角色不同）+ 個人資訊與登出 */}
+      {/* 下半部：後台入口 + 個人資訊名牌 */}
       <div className="p-3 border-t border-slate-800 bg-slate-950/60 flex flex-col gap-2">
         {hasDashboardAccess && (
           <Link
@@ -184,21 +286,25 @@ export default function Sidebar({
         <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 px-1">
           <div className="flex items-center gap-2 truncate max-w-[170px]">
             <div
-              className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+              className={`h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
                 checkAdmin
                   ? 'bg-amber-500/20 text-amber-400'
                   : checkManager
-                  ? 'bg-emerald-500/20 text-emerald-400'
-                  : 'bg-blue-500/20 text-blue-400'
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : 'bg-blue-500/20 text-blue-400'
               }`}
             >
-              {checkAdmin ? 'A' : checkManager ? 'M' : 'U'}
+              {employeeName ? employeeName.slice(0, 1) : checkAdmin ? 'A' : checkManager ? 'M' : 'U'}
             </div>
-            <div className="flex flex-col truncate">
-              <span className="text-xs text-slate-300 truncate">{userEmail || '使用者'}</span>
-              {department && (
-                <span className="text-[10px] text-slate-500 truncate">{department}</span>
-              )}
+            <div className="flex flex-col truncate leading-tight">
+              <span className="text-xs text-slate-200 font-medium truncate">
+                {employeeName || userEmail || '使用者'}
+              </span>
+              <span className="text-[10px] text-slate-500 truncate">
+                {department ? `${department}` : ''}
+                {department && userEmail ? ' · ' : ''}
+                {userEmail}
+              </span>
             </div>
           </div>
           <button
