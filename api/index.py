@@ -141,3 +141,10 @@ def root():
         "message": "SOP AI Backend is running"
     }
 
+
+@app.get("/api/test")
+def test():
+    return {
+        "status": "ok",
+        "message": "Vercel FastAPI routing works"
+    }
