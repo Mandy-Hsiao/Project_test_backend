@@ -148,3 +148,16 @@ def test():
         "status": "ok",
         "message": "Vercel FastAPI routing works"
     }
+    
+@app.get("/api/routes")
+def routes():
+    return {
+        "routes": [
+            {
+                "path": route.path,
+                "name": route.name,
+                "methods": list(route.methods or [])
+            }
+            for route in app.routes
+        ]
+    }
