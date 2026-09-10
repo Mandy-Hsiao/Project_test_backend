@@ -8,7 +8,7 @@ python manage.py runserver
 問答執行程序:
 
 1.在瀏覽器輸入以下網址:
-https://project-test-tau-self.vercel.app/docs
+https://project-test-backend-mu.vercel.app/api/docs
 
 2.按post/api/chat
 
