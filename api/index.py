@@ -24,7 +24,8 @@ load_dotenv(dotenv_path=ENV_PATH, override=True)
 app = FastAPI(
     title="SOP AI API",
     description="Gemini API 測試版本",
-    version="1.0.0"
+    version="1.0.0",
+    docs_url="/api/docs"
 )
 
 
