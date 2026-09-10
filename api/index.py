@@ -135,15 +135,6 @@ def chat(data: QuestionRequest):
     return result
 
 
-
-
-@app.get("/")
-def root():
-    return {
-        "message": "SOP AI Backend is running"
-    }
-
-
 @app.get("/api/test")
 def test():
     return {
