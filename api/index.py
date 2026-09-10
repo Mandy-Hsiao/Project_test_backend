@@ -25,7 +25,8 @@ app = FastAPI(
     title="SOP AI API",
     description="Gemini API 測試版本",
     version="1.0.0",
-    docs_url="/api/docs"
+    docs_url="/api/docs",
+    openapi_url="/api/openapi.json"
 )
 
 
