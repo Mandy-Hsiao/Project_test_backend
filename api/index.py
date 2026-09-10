@@ -149,30 +149,3 @@ def test():
         "message": "Vercel FastAPI routing works"
     }
     
-@app.get("/api/routes")
-def routes():
-    return {
-        "routes": [
-            {
-                "path": route.path,
-                "name": route.name,
-                "methods": list(route.methods or [])
-            }
-            for route in app.routes
-        ]
-    }
-
-
-from fastapi import Request
-
-@app.api_route(
-    "/{full_path:path}",
-    methods=["GET", "POST", "PUT", "DELETE", "PATCH"]
-)
-async def debug_path(full_path: str, request: Request):
-    return {
-        "debug": True,
-        "received_path": request.url.path,
-        "full_path": full_path,
-        "method": request.method
-    }
