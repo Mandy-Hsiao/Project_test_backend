@@ -116,7 +116,7 @@ def ask_gemini(question: str) -> str:
 app = FastAPI(
     title="SOP AI API",
     version="1.0.0",
-    docs_url="/",
+    docs_url="/api/docs",
     openapi_url="/api/openapi.json"
 )
 
