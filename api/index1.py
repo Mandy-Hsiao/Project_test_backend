@@ -1,4 +1,4 @@
-import os
+'''import os
 from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -142,3 +142,4 @@ def test():
         "message": "Vercel FastAPI routing works"
     }
     
+'''
