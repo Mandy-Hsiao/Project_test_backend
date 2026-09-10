@@ -125,7 +125,7 @@ def home():
 # 7. Chat API
 # =========================================================
 
-@app.post("/api/chat")
+@app.post("/chat")
 def chat(data: QuestionRequest):
 
     result = get_rag_answer(data.question)
