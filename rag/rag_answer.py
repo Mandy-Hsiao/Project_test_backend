@@ -97,8 +97,7 @@ def ask_gemini_llm(question: str, context: str) -> str:
 規則：
 
 1. 不得自行補充 SOP 中不存在的資訊。
-2. 如果 SOP 中沒有足夠資訊回答，請回答：
-   「目前 SOP 文件中沒有相關資訊。」
+2. 如果 SOP 中沒有足夠資訊回答就不要亂講。
 3. 使用繁體中文。
 4. 回答清楚、簡潔、正式。
 5. 完整保留 SOP 中的重要資訊。
@@ -173,9 +172,10 @@ def get_rag_answer(question: str) -> str:
     try: 
  
         results = index.query( 
-            namespace=PINECONE_NAMESPACE, 
+            namespace=PINECONE_NAMESPACE,
+            #使用者問題的向量交給 Pinecone，請 Pinecone 找出與它最接近的向量。 
             vector=query_embedding, 
-            top_k=3, 
+            top_k=9, 
             include_metadata=True 
         ) 
  
@@ -230,7 +230,7 @@ def get_rag_answer(question: str) -> str:
  
  
     # ----------------------------------------------------- 
-    # Step 5：Context → Gemini 
+    # Step 5：Context → Gemini (回傳答案給LLM)
     # ----------------------------------------------------- 
  
     answer = ask_gemini_llm( 
@@ -245,18 +245,16 @@ def get_rag_answer(question: str) -> str:
 # 9. 本機測試 
 # ========================================================= 
  
-if __name__ == "__main__": 
- 
-    import sys 
- 
-    if len(sys.argv) < 2: 
- 
-        print("請輸入問題。") 
- 
-    else: 
- 
-        question = " ".join(sys.argv[1:]) 
- 
-        print("\n問題：", question) 
-        print("\n回答：") 
+if __name__ == "__main__":
+
+    question = input("請輸入問題：")
+
+    if not question.strip():
+
+        print("問題不能為空。")
+
+    else:
+
+        print("\n問題：", question)
+        print("\n回答：")
         print(get_rag_answer(question))

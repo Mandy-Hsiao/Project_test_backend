@@ -1,13 +1,27 @@
+# ============================================================
+# Python內建模組
+# ============================================================
+#從系統環境拿設定
 import os
+#處理文字規則
 import re
+#資料轉Json檔
 import json
+#UUID實際上沒用到
 import uuid
+#找路徑用
 from pathlib import Path
  
+# ============================================================
+# 第三方套件
+# ============================================================
+#讀 PDF
 import pymupdf
+#計算 Token
 import tiktoken
-
+#讀取 .env
 from dotenv import load_dotenv
+#建立Supabase Python 連線
 from supabase import create_client
 
 
@@ -147,19 +161,19 @@ def is_heading(line):
 
     heading_patterns = [
 
-        # 1. 標題
+        # 1. 數字 + . 開頭標題
         r"^\d+\.\s*\S+",
 
-        # 1.1 標題
+        # 1.1 多層數字編號標題
         r"^\d+\.\d+[\.\d]*\s*\S+",
 
-        # 一、標題
+        # 一、中文數字 + 頓號標題
         r"^[一二三四五六七八九十]+、\s*\S+",
 
-        # (一) 標題
+        # (一) 括號中文數字標題
         r"^[\(（][一二三四五六七八九十]+[\)）]\s*\S+",
 
-        # 1) 標題
+        # 1) 數字 + 右括號標題
         r"^\d+[\)）]\s*\S+",
 
         # Step 1
@@ -167,8 +181,8 @@ def is_heading(line):
 
         # 第X章 / 第X節
         r"^第[一二三四五六七八九十\d]+[章節部分]"
-    ]
-
+    ] 
+     
     for pattern in heading_patterns:
 
         if re.match(
@@ -327,7 +341,7 @@ def recursive_split_by_separator(
 
     parts = text.split(separator)
 
-    # 如果根本切不開
+    # 如果根本切不開&&&
     if len(parts) == 1:
 
         return recursive_split_by_separator(
@@ -547,29 +561,20 @@ def add_token_overlap(
 # ============================================================
 # 9. 建立 Parent / Child
 # ============================================================
-
 def create_parent_child_chunks(
     section_text,
     heading,
     file_name,
     storage_path,
     page_number,
+    section_index,
     parent_max_tokens=1000,
     child_max_tokens=350,
     child_overlap_tokens=50
 ):
-    """
-    一個 Section 會先當 Parent。
-
-    如果 Parent 過長，
-    先切成多個 Parent。
-
-    再把 Parent 切成 Child。
-    """
 
     results = []
 
-    # Parent 也不能無限大
     parent_parts = (
         recursive_token_split(
             section_text,
@@ -578,13 +583,22 @@ def create_parent_child_chunks(
         )
     )
 
+    # 根據 PDF 的 storage_path 產生固定的來源 ID
+    source_id = uuid.uuid5(
+        uuid.NAMESPACE_URL,
+        storage_path
+    ).hex[:8]
+
     for parent_index, parent_text in enumerate(
         parent_parts
     ):
 
+        # 建立唯一 Parent ID
         parent_id = (
             f"{Path(file_name).stem}"
+            f"_{source_id}"
             f"_p{page_number}"
+            f"_s{section_index}"
             f"_parent{parent_index + 1}"
         )
 
@@ -596,6 +610,7 @@ def create_parent_child_chunks(
                 overlap_tokens=child_overlap_tokens
             )
         )
+
 
         parent_data = {
             "parent_id": parent_id,
@@ -650,7 +665,28 @@ def create_parent_child_chunks(
 # ============================================================
 # 10. 解析單一 PDF
 # ============================================================
+def is_page_number(text):
 
+    text = text.strip()
+
+    return bool(
+        re.fullmatch(
+            r"\d+\s*/\s*\d+",
+            text
+        )
+    )
+    
+def is_export_datetime(text):
+
+    text = text.strip()
+
+    return bool(
+        re.fullmatch(
+            r"\d{4}/\d{1,2}/\d{1,2}\s+.*\d{1,2}:\d{2}",
+            text
+        )
+    )
+    
 def process_pdf(
     pdf_bytes,
     file_name,
@@ -700,14 +736,32 @@ def process_pdf(
             f"{len(sections)} 個 section"
         )
 
-        for section in sections:
+        for section_index, section in enumerate(
+            sections,
+            start=1
+        ):
 
             section_text = (
-                section["text"]
+                section["text"].strip()
             )
 
-            if not section_text:
+            # 沒有文字就跳過
+            if is_page_number(section_text):
+                print(
+                    f"    跳過頁碼：{section_text}"
+                )
                 continue
+
+            if is_export_datetime(section_text):
+                print(
+                    f"    跳過日期：{section_text}"
+                )
+                continue
+
+            print(
+                f"    Section {section_index}："
+                f"{section_text[:50]}"
+            )
 
             results = (
                 create_parent_child_chunks(
@@ -715,7 +769,8 @@ def process_pdf(
                     heading=section["heading"],
                     file_name=file_name,
                     storage_path=storage_path,
-                    page_number=page_number
+                    page_number=page_number,
+                    section_index=section_index
                 )
             )
 

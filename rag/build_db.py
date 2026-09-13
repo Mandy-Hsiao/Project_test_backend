@@ -165,7 +165,8 @@ def create_embedding(text):
 def child_to_vector(child):
 
     text = child["text"]
-
+    
+    #導入embedding模型向量化
     embedding = create_embedding(
         text
     )
@@ -222,10 +223,36 @@ def child_to_vector(child):
 # 8. Upload
 # ============================================================
 
+#總Child召回數回傳
 def upload_all():
 
     data = load_chunks()
+    seen_ids = set()
+    for item in data:
 
+        for child in item["children"]:
+
+            child_id = (
+                child["child_id"]
+            )
+
+            if child_id in seen_ids:
+
+                raise ValueError(
+                    f"發現重複 child_id："
+                    f"{child_id}"
+                )
+
+            seen_ids.add(
+                child_id
+            )
+
+    print(
+        f"Child ID 檢查完成："
+        f"{len(seen_ids)} 個 ID，無重複"
+    )
+    
+    
     vectors = []
 
     total_children = sum(
@@ -238,7 +265,8 @@ def upload_all():
     )
 
     processed = 0
-
+#Child 一個一個拿出來，呼叫剛才的child_to_vector()做 Embedding，
+# 最後把產生的 Vector 暫存在 vectors 清單裡
     for item in data:
 
         children = item[
