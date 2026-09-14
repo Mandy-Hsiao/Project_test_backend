@@ -141,4 +141,10 @@ def test():
         "status": "ok",
         "message": "Vercel FastAPI routing works"
     }
-    
+
+@app.get("/api/test1")
+def test1():
+    return {
+        "status": "ok",
+        "message": "Vercel FastAPI routing works"
+    }
