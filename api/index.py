@@ -7,6 +7,9 @@ from pydantic import BaseModel
      
 from rag.rag_answer import get_rag_answer
 
+from rag.gemini_key_manager import create_gemini_interaction
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENV_PATH = BASE_DIR / ".env"
 
@@ -31,7 +34,29 @@ app = FastAPI(
 
 
 
+#Test
 
+@app.get("/api/gemini-test")
+def gemini_test():
+
+    try:
+
+        interaction = create_gemini_interaction(
+            prompt="請只回答：Gemini 測試成功",
+            model="gemini-3.6-flash"
+        )
+
+        return {
+            "status": "ok",
+            "answer": interaction.output_text
+        }
+
+    except Exception as exc:
+
+        return {
+            "status": "error",
+            "error": str(exc)
+        }
 
 
 
