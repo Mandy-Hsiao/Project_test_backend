@@ -374,9 +374,65 @@ def create_gemini_interaction(
             )
 
 
-            # 保持跟 rag_answer.py 相容
+            usage_metadata = data.get(
+                "usageMetadata",
+                {}
+            )
+
+            input_tokens = usage_metadata.get(
+                "promptTokenCount",
+                0
+            )
+
+            output_tokens = usage_metadata.get(
+                "candidatesTokenCount",
+                0
+            )
+
+            total_tokens = usage_metadata.get(
+                "totalTokenCount",
+                0
+            )
+
+
+            print(
+                "Token Usage："
+            )
+
+            print(
+                f"Input Tokens：{input_tokens}"
+            )
+
+            print(
+                f"Output Tokens：{output_tokens}"
+            )
+
+            print(
+                f"Total Tokens：{total_tokens}"
+            )
+
+
+            # ====================================================
+            # 模擬舊版 interaction object
+            # ====================================================
+
+            usage = SimpleNamespace(
+
+                total_input_tokens=input_tokens,
+
+                total_output_tokens=output_tokens,
+
+                total_tokens=total_tokens
+
+            )
+
+
             return SimpleNamespace(
-                output_text=output_text
+
+                output_text=output_text,
+
+                usage=usage
+
             )
 
 
