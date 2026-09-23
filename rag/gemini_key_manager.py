@@ -26,10 +26,10 @@ load_dotenv(
 # 2. Timeout 設定
 # ============================================================
 
-CONNECT_TIMEOUT = 3.0
-READ_TIMEOUT = 10.0
-WRITE_TIMEOUT = 3.0
-POOL_TIMEOUT = 3.0
+CONNECT_TIMEOUT = 5.0
+READ_TIMEOUT = 30.0
+WRITE_TIMEOUT = 10.0
+POOL_TIMEOUT = 5.0
 
 
 # ============================================================
