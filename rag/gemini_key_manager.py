@@ -1,15 +1,16 @@
 import os
-import re
 import hashlib
+
 from pathlib import Path
+from types import SimpleNamespace
+
+import httpx
 
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
 
 
 # ============================================================
-# 1. 載入環境變數
+# 1. 環境變數
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,14 +23,23 @@ load_dotenv(
 
 
 # ============================================================
-# 2. 讀取 Gemini API Keys
+# 2. Timeout 設定
+# ============================================================
+
+CONNECT_TIMEOUT = 3.0
+READ_TIMEOUT = 10.0
+WRITE_TIMEOUT = 3.0
+POOL_TIMEOUT = 3.0
+
+
+# ============================================================
+# 3. 讀取 API Keys
 # ============================================================
 
 def load_gemini_api_keys():
 
     keys = []
 
-    # GEMINI_API_KEY_1 ~ GEMINI_API_KEY_20
     for index in range(1, 21):
 
         key = os.getenv(
@@ -51,9 +61,9 @@ def load_gemini_api_keys():
     if not keys:
 
         raise RuntimeError(
-            "找不到任何 Gemini API Key。\n"
-            "請確認環境變數至少存在：\n"
-            "GEMINI_API_KEY_1"
+            "找不到 Gemini API Key。"
+            "請確認 GEMINI_API_KEY_1、"
+            "GEMINI_API_KEY_2 等環境變數。"
         )
 
 
@@ -61,13 +71,10 @@ def load_gemini_api_keys():
 
 
 # ============================================================
-# 3. Key 指紋
-#    不直接輸出 API Key
+# 4. Key 指紋
 # ============================================================
 
-def get_key_fingerprint(
-    api_key: str
-) -> str:
+def get_key_fingerprint(api_key):
 
     return (
         hashlib
@@ -79,209 +86,59 @@ def get_key_fingerprint(
 
 
 # ============================================================
-# 4. 解析 HTTP Error Code
+# 5. 取得 Gemini 回答
 # ============================================================
 
-def get_error_code(exc):
+def extract_output_text(data):
 
-    # --------------------------------------------------------
-    # Exception 本身
-    # --------------------------------------------------------
+    candidates = data.get(
+        "candidates",
+        []
+    )
 
-    for attribute in (
-        "status_code",
-        "code"
-    ):
+    if not candidates:
+        return ""
 
-        value = getattr(
-            exc,
-            attribute,
-            None
+
+    content = (
+        candidates[0]
+        .get(
+            "content",
+            {}
+        )
+    )
+
+    parts = content.get(
+        "parts",
+        []
+    )
+
+
+    texts = []
+
+    for part in parts:
+
+        text = part.get(
+            "text"
         )
 
-        if value is not None:
-
-            try:
-
-                return int(value)
-
-            except (
-                TypeError,
-                ValueError
-            ):
-
-                pass
+        if text:
+            texts.append(text)
 
 
-    # --------------------------------------------------------
-    # Exception.response
-    # --------------------------------------------------------
-
-    response = getattr(
-        exc,
-        "response",
-        None
-    )
-
-    if response is not None:
-
-        value = getattr(
-            response,
-            "status_code",
-            None
-        )
-
-        if value is not None:
-
-            try:
-
-                return int(value)
-
-            except (
-                TypeError,
-                ValueError
-            ):
-
-                pass
-
-
-    # --------------------------------------------------------
-    # 從錯誤文字解析
-    # --------------------------------------------------------
-
-    error_text = str(exc)
-
-    patterns = [
-
-        r"Error code:\s*(\d{3})",
-
-        r"status[_ ]?code[=:]\s*(\d{3})",
-
-        r"HTTP[/\d. ]+(\d{3})",
-
-        r"'code':\s*'?"
-        r"(400|401|403|404|408|409|429|500|502|503|504)"
-        r"'?",
-
-        r'"code":\s*"'
-        r"?(400|401|403|404|408|409|429|500|502|503|504)"
-        r'"?',
-
-    ]
-
-
-    for pattern in patterns:
-
-        match = re.search(
-            pattern,
-            error_text,
-            re.IGNORECASE
-        )
-
-        if match:
-
-            return int(
-                match.group(1)
-            )
-
-
-    return None
+    return "\n".join(
+        texts
+    ).strip()
 
 
 # ============================================================
-# 5. 判斷是否為網路 / Timeout
-# ============================================================
-
-def is_network_or_timeout_error(
-    exc
-):
-
-    exception_name = (
-        type(exc).__name__
-        .lower()
-    )
-
-    error_text = (
-        str(exc)
-        .lower()
-    )
-
-
-    keywords = (
-
-        "timeout",
-        "timed out",
-
-        "readtimeout",
-        "connecttimeout",
-
-        "connection",
-        "connection reset",
-
-        "network",
-
-        "server disconnected",
-
-        "remote protocol",
-
-        "temporarily unavailable",
-
-        "service unavailable",
-
-    )
-
-
-    for keyword in keywords:
-
-        if (
-            keyword in exception_name
-            or keyword in error_text
-        ):
-
-            return True
-
-
-    return False
-
-
-# ============================================================
-# 6. Gemini API Key Manager
+# 6. Gemini Key Manager
 # ============================================================
 
 def create_gemini_interaction(
     prompt: str,
     model: str = "gemini-3.6-flash"
 ):
-
-    """
-    Fail-Fast Gemini API Key Manager
-
-    行為：
-
-    200
-        → 直接回傳
-
-    429
-        → 立刻切換下一把 Key
-
-    401 / 403
-        → Key / 權限問題
-        → 立刻切換下一把 Key
-
-    408 / 500 / 502 / 503 / 504
-        → 暫時性服務錯誤
-        → 立刻切換下一把 Key
-
-    Timeout / Connection / code=None
-        → 不等待
-        → 立刻切換下一把 Key
-
-    400 / 404 等
-        → 通常是程式、Model 或 Request 問題
-        → 不應靠換 Key 解決
-        → 直接拋出
-    """
-
 
     if not prompt:
 
@@ -305,7 +162,53 @@ def create_gemini_interaction(
     )
 
     print(
+        "目前使用 REST generateContent"
+    )
+
+    print(
         "========================================"
+    )
+
+
+    url = (
+        "https://generativelanguage.googleapis.com/"
+        f"v1beta/models/{model}:generateContent"
+    )
+
+
+    payload = {
+
+        "contents": [
+
+            {
+
+                "role": "user",
+
+                "parts": [
+
+                    {
+                        "text": prompt
+                    }
+
+                ]
+
+            }
+
+        ]
+
+    }
+
+
+    timeout = httpx.Timeout(
+
+        connect=CONNECT_TIMEOUT,
+
+        read=READ_TIMEOUT,
+
+        write=WRITE_TIMEOUT,
+
+        pool=POOL_TIMEOUT
+
     )
 
 
@@ -313,7 +216,7 @@ def create_gemini_interaction(
 
 
     # ========================================================
-    # 每把 Key 最多只呼叫一次
+    # 每個 Key 只嘗試一次
     # ========================================================
 
     for key_index, api_key in enumerate(
@@ -334,54 +237,135 @@ def create_gemini_interaction(
         )
 
         print(
-            f"Key 指紋：{fingerprint}"
+            f"Key 指紋："
+            f"{fingerprint}"
         )
 
 
-        # ====================================================
-        # 關閉 Google SDK 自動 retry
-        #
-        # timeout = 15000 ms
-        # attempts = 1 表示不額外 retry
-        # ====================================================
+        headers = {
 
-        client = genai.Client(
+            "x-goog-api-key":
+                api_key,
 
-            api_key=api_key,
+            "Content-Type":
+                "application/json"
 
-            http_options=types.HttpOptions(
-
-                timeout=15000,
-
-                retry_options=(
-                    types.HttpRetryOptions(
-                        attempts=1
-                    )
-                )
-
-            )
-
-        )
+        }
 
 
         try:
 
-            # =================================================
-            # Gemini Request
-            #
-            # timeout=15：
-            # interactions.create 的 timeout 單位是秒
-            # =================================================
+            with httpx.Client(
+                timeout=timeout
+            ) as client:
 
-            interaction = (
-                client
-                .interactions
-                .create(
-                    model=model,
-                    input=prompt,
-                    timeout=15
+                response = (
+                    client.post(
+                        url,
+                        headers=headers,
+                        json=payload
+                    )
+                )
+
+
+        # ====================================================
+        # Timeout
+        # ====================================================
+
+        except httpx.TimeoutException as exc:
+
+            last_error = exc
+
+            print(
+                f"⏱️ Key {key_index} "
+                "Gemini 呼叫逾時"
+            )
+
+            print(
+                "➡️ 立即切換下一把 Key"
+            )
+
+            continue
+
+
+        # ====================================================
+        # Connection / Network
+        # ====================================================
+
+        except httpx.RequestError as exc:
+
+            last_error = exc
+
+            print(
+                f"🌐 Key {key_index} "
+                "Gemini 網路連線失敗"
+            )
+
+            print(
+                "錯誤類型：",
+                type(exc).__name__
+            )
+
+            print(
+                "➡️ 立即切換下一把 Key"
+            )
+
+            continue
+
+
+        status_code = (
+            response.status_code
+        )
+
+
+        print(
+            f"Gemini HTTP Status："
+            f"{status_code}"
+        )
+
+
+        # ====================================================
+        # 成功
+        # ====================================================
+
+        if status_code == 200:
+
+            try:
+
+                data = (
+                    response.json()
+                )
+
+            except Exception as exc:
+
+                last_error = exc
+
+                print(
+                    "❌ Gemini JSON "
+                    "解析失敗"
+                )
+
+                continue
+
+
+            output_text = (
+                extract_output_text(
+                    data
                 )
             )
+
+
+            if not output_text:
+
+                last_error = RuntimeError(
+                    "Gemini 沒有回傳有效文字"
+                )
+
+                print(
+                    "⚠️ Gemini 沒有回傳文字"
+                )
+
+                continue
 
 
             print(
@@ -390,173 +374,123 @@ def create_gemini_interaction(
             )
 
 
-            return interaction
-
-
-        except Exception as exc:
-
-            last_error = exc
-
-            error_code = (
-                get_error_code(exc)
+            # 保持跟 rag_answer.py 相容
+            return SimpleNamespace(
+                output_text=output_text
             )
 
-            network_error = (
-                is_network_or_timeout_error(
-                    exc
-                )
+
+        # ====================================================
+        # 取得 Gemini Error
+        # ====================================================
+
+        try:
+
+            error_data = (
+                response.json()
             )
 
+        except Exception:
+
+            error_data = {
+                "raw":
+                    response.text[:1000]
+            }
+
+
+        last_error = RuntimeError(
+            f"Gemini HTTP "
+            f"{status_code}: "
+            f"{error_data}"
+        )
+
+
+        # ====================================================
+        # 429
+        # ====================================================
+
+        if status_code == 429:
 
             print(
-                f"\nGemini Key "
-                f"{key_index} 呼叫失敗"
-            )
-
-            print(
-                "錯誤 Code：",
-                error_code
-            )
-
-            print(
-                "錯誤 Type：",
-                type(exc).__name__
-            )
-
-            print(
-                "錯誤訊息：",
-                str(exc)
-            )
-
-
-            # ================================================
-            # 429
-            # ================================================
-
-            if error_code == 429:
-
-                print(
-                    "⚠️ 此 Gemini Project "
-                    "已達 quota / rate limit。"
-                )
-
-                print(
-                    "➡️ 立即切換下一把 Key。"
-                )
-
-                continue
-
-
-            # ================================================
-            # 401 / 403
-            # ================================================
-
-            if error_code in (
-                401,
-                403
-            ):
-
-                print(
-                    "⚠️ 此 Gemini Key "
-                    "驗證或權限異常。"
-                )
-
-                print(
-                    "➡️ 立即切換下一把 Key。"
-                )
-
-                continue
-
-
-            # ================================================
-            # Temporary HTTP Errors
-            # ================================================
-
-            if error_code in (
-                408,
-                500,
-                502,
-                503,
-                504
-            ):
-
-                print(
-                    "⚠️ Gemini 暫時性服務錯誤。"
-                )
-
-                print(
-                    "➡️ 不等待，立即切換下一把 Key。"
-                )
-
-                continue
-
-
-            # ================================================
-            # Timeout / Network
-            #
-            # 這就是你現在 Key 2 最可能遇到的狀況
-            # ================================================
-
-            if (
-                error_code is None
-                or network_error
-            ):
-
-                print(
-                    "⚠️ Gemini 發生 Timeout "
-                    "或網路連線異常。"
-                )
-
-                print(
-                    "➡️ 不等待，立即切換下一把 Key。"
-                )
-
-                continue
-
-
-            # ================================================
-            # 其他錯誤
-            #
-            # 例如 400 / 404
-            # 換 Key 通常沒有意義
-            # ================================================
-
-            print(
-                "❌ 發生非備援型錯誤。"
+                "⚠️ 此 Gemini Project "
+                "已達 quota / rate limit"
             )
 
             print(
-                "停止 Gemini Key 切換。"
+                "➡️ 立即切換下一把 Key"
             )
 
-            raise
+            continue
 
 
-        finally:
+        # ====================================================
+        # 401 / 403
+        # ====================================================
 
-            try:
+        if status_code in (
+            401,
+            403
+        ):
 
-                client.close()
+            print(
+                "⚠️ API Key "
+                "驗證或權限異常"
+            )
 
-            except Exception:
+            print(
+                "➡️ 立即切換下一把 Key"
+            )
 
-                pass
+            continue
+
+
+        # ====================================================
+        # 暫時性 Server Error
+        # ====================================================
+
+        if status_code in (
+            408,
+            500,
+            502,
+            503,
+            504
+        ):
+
+            print(
+                f"⚠️ Gemini Server "
+                f"回傳 {status_code}"
+            )
+
+            print(
+                "➡️ 不等待、不 Retry，"
+                "直接切換下一把 Key"
+            )
+
+            continue
+
+
+        # ====================================================
+        # 其他錯誤
+        # ====================================================
+
+        print(
+            "❌ Gemini 發生"
+            "非備援型錯誤"
+        )
+
+        print(
+            error_data
+        )
+
+        raise last_error
 
 
     # ========================================================
-    # 所有 Key 都失敗
+    # 全部失敗
     # ========================================================
-
-    print(
-        "\n❌ 所有 Gemini API Key "
-        "皆無法成功呼叫。"
-    )
-
 
     raise RuntimeError(
-
         "所有 Gemini API Key "
         "目前皆無法成功呼叫。\n"
         f"最後錯誤：{last_error}"
-
     )
