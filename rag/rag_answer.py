@@ -3,8 +3,10 @@ from pathlib import Path
  
 from dotenv import load_dotenv 
 from openai import OpenAI 
-from pinecone import Pinecone 
-from google import genai 
+from pinecone import Pinecone
+
+from rag.gemini_key_manager import create_gemini_interaction
+ 
  
  
 # ========================================================= 
@@ -33,8 +35,8 @@ AZURE_OPENAI_EMBEDDING_DEPLOYMENT = os.getenv(
     "AZURE_OPENAI_EMBEDDING_DEPLOYMENT" 
 ) 
  
-# Gemini 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") 
+
+
  
  
 # ========================================================= 
@@ -47,15 +49,7 @@ azure_client = OpenAI(
     base_url=f"{AZURE_OPENAI_ENDPOINT.rstrip('/')}/openai/v1/", 
 ) 
  
- 
-# ========================================================= 
-# 4. Gemini Client 
-# ========================================================= 
- 
-gemini_client = genai.Client( 
-    api_key=GEMINI_API_KEY 
-) 
- 
+
  
 # ========================================================= 
 # 5. Pinecone Client 
@@ -87,7 +81,10 @@ def get_embedding(text: str):
 # 7. Gemini LLM
 # =========================================================
 
-def ask_gemini_llm(question: str, context: str) -> str:
+def ask_gemini_llm(
+    question: str,
+    context: str
+) -> str:
 
     prompt = f"""
 你是兆豐證券資訊部 SOP AI 助教。
@@ -104,11 +101,6 @@ def ask_gemini_llm(question: str, context: str) -> str:
 3. 若片段中僅有「部分」相關資訊，仍應根據可用內容回答，並註明：
    「以下回答依據現有SOP片段整理，若涉及尚未提及的細節，建議進一步確認。」
 4. 禁止在檢索片段中含有相關關鍵字或敘述時，直接回覆「沒有相關資訊」。
-
-在生成最終答案前，請先在內部（不需輸出）列出：
-- 檢索片段中，哪些內容與問題相關
-- 這些內容分別對應問題的哪個部分
-再根據盤點結果撰寫最終答案。
 
 回答時請標示資訊確定程度：
 - 【明確依據】：SOP文件中有直接對應的敘述
@@ -136,15 +128,27 @@ def ask_gemini_llm(question: str, context: str) -> str:
 
     try:
 
-        interaction = gemini_client.interactions.create(
-            model="gemini-3.6-flash",
-            input=prompt
+        interaction = create_gemini_interaction(
+            prompt=prompt,
+            model="gemini-3.6-flash"
         )
 
         if not interaction.output_text:
-            return "Gemini 未回傳有效回答。"
-
-        return interaction.output_text.strip()
+                    return {
+                        "answer": "Gemini 未回傳有效回答。",
+                        "input_tokens": 0,
+                        "output_tokens": 0,
+                        "total_tokens": 0
+                    }
+        
+        usage = interaction.usage
+        
+        return {
+            "answer": interaction.output_text.strip(),
+            "input_tokens": usage.total_input_tokens if usage else 0,
+            "output_tokens": usage.total_output_tokens if usage else 0,
+            "total_tokens": usage.total_tokens if usage else 0
+        }
 
     except Exception as exc:
 
