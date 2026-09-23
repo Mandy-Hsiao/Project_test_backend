@@ -5,6 +5,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from google import genai
+from google.genai import types
 
 
 # ============================================================
@@ -155,7 +156,7 @@ def get_error_code(exc):
 def create_gemini_interaction(
     prompt: str,
     model: str = "gemini-3.6-flash",
-    max_503_retries: int = 2
+    max_503_retries: int = 1
 ):
 
     """
@@ -222,7 +223,12 @@ def create_gemini_interaction(
 
 
         client = genai.Client(
-            api_key=api_key
+            api_key=api_key,
+            http_options=types.HttpOptions(
+                retry_options=types.HttpRetryOptions(
+                    attempts=1
+                )
+            )
         )
 
 
@@ -243,7 +249,8 @@ def create_gemini_interaction(
                         .interactions
                         .create(
                             model=model,
-                            input=prompt
+                            input=prompt,
+                            timeout=20
                         )
                     )
 
