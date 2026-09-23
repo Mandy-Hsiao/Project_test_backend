@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-
+     
 from rag.rag_answer import get_rag_answer
 
 BASE_DIR = Path(__file__).resolve().parent.parent
