@@ -194,7 +194,7 @@ def get_rag_answer(question: str) -> str:
             namespace=PINECONE_NAMESPACE,
             #使用者問題的向量交給 Pinecone，請 Pinecone 找出與它最接近的向量。 
             vector=query_embedding, 
-            top_k=3, 
+            top_k=6, 
             include_metadata=True 
         ) 
  
