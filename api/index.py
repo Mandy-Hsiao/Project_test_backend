@@ -126,9 +126,9 @@ def is_question_on_topic(question: str) -> bool:
 """.strip()
 
     try:
-        interaction = gemini_client.interactions.create(
-            model="gemini-3.6-flash",
-            input=classify_prompt
+        interaction = create_gemini_interaction(
+            prompt=classify_prompt,
+            model="gemini-3.6-flash"
         )
 
         answer = (interaction.output_text or "").strip()
