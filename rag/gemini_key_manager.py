@@ -393,7 +393,11 @@ def create_gemini_interaction(
                 "totalTokenCount",
                 0
             )
-
+            
+            thoughts_tokens = usage_metadata.get(
+                "thoughtsTokenCount",
+                0
+            )
 
             print(
                 "Token Usage："
@@ -405,6 +409,10 @@ def create_gemini_interaction(
 
             print(
                 f"Output Tokens：{output_tokens}"
+            )
+            
+            print(
+                f"Thinking Tokens：{thoughts_tokens}"
             )
 
             print(
