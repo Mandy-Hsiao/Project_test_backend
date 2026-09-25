@@ -450,112 +450,71 @@ def create_gemini_interaction(
 
                 continue
 
-
             # =================================================
             # Token Usage
             # =================================================
-
-            usage_metadata = (
-                data.get(
-                    "usageMetadata",
-                    {}
-                )
+            usage_metadata = data.get(
+                "usageMetadata",
+                {}
             )
 
-
-            input_tokens = (
-                usage_metadata.get(
-                    "promptTokenCount",
-                    0
-                )
+            input_tokens = usage_metadata.get(
+                "promptTokenCount",
+                0
             )
 
-            output_tokens = (
-                usage_metadata.get(
-                    "candidatesTokenCount",
-                    0
-                )
-            )
-
-            total_tokens = (
-                usage_metadata.get(
-                    "totalTokenCount",
-                    0
-                )
-            )
-
-
-            usage = SimpleNamespace(
-
-                total_input_tokens=(
-                    input_tokens
-                ),
-
-                total_output_tokens=(
-                    output_tokens
-                ),
-
-                total_tokens=(
-                    total_tokens
-                )
-
-            )
-
-
-            # =================================================
-            # 記住成功的 Key
-            #
-            # 下一次 Request 優先使用這把
-            # =================================================
-
-            _current_key_index = (
-                key_index
-            )
-            
-            thoughts_tokens = usage_metadata.get(
+            thinking_tokens = usage_metadata.get(
                 "thoughtsTokenCount",
                 0
             )
 
+            output_tokens = usage_metadata.get(
+                "candidatesTokenCount",
+                0
+            )
+
+            total_tokens = usage_metadata.get(
+                "totalTokenCount",
+                0
+            )
+
+
             print(
-                f"✅ Gemini API Key "
-                f"{key_index + 1} 呼叫成功"
+                f"Input Tokens：{input_tokens}"
             )
 
             print(
-                f"Input Tokens："
-                f"{input_tokens}"
+                f"Thinking Tokens：{thinking_tokens}"
             )
 
             print(
-                f"Output Tokens："
-                f"{output_tokens}"
-            )
-            
-            print(
-                f"Thinking Tokens：{thoughts_tokens}"
+                f"Output Tokens：{output_tokens}"
             )
 
             print(
-                f"Total Tokens："
-                f"{total_tokens}"
+                f"Total Tokens：{total_tokens}"
             )
 
 
             # =================================================
-            # 模擬原本 Gemini Interaction
+            # 建立 Usage Object
+            # =================================================
+
+            usage = SimpleNamespace(
+                total_input_tokens=input_tokens,
+                thinking_tokens=thinking_tokens,
+                total_output_tokens=output_tokens,
+                total_tokens=total_tokens
+            )
+
+
+            # =================================================
+            # 模擬 Gemini Interaction
             # =================================================
 
             return SimpleNamespace(
-
-                output_text=(
-                    output_text
-                ),
-
-                usage=(
-                    usage
-                )
-
+                output_text=output_text,
+                usage=usage
             )
 
 

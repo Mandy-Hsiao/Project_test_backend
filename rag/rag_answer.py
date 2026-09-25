@@ -137,24 +137,46 @@ def ask_gemini_llm(
                     return {
                         "answer": "Gemini 未回傳有效回答。",
                         "input_tokens": 0,
+                        "thinking_tokens": 0,
                         "output_tokens": 0,
                         "total_tokens": 0
                     }
         
         usage = interaction.usage
-        
+
         return {
             "answer": interaction.output_text.strip(),
-            "input_tokens": usage.total_input_tokens if usage else 0,
-            "output_tokens": usage.total_output_tokens if usage else 0,
-            "total_tokens": usage.total_tokens if usage else 0
+
+            "input_tokens":
+                usage.total_input_tokens
+                if usage else 0,
+
+            "thinking_tokens":
+                usage.thinking_tokens
+                if usage else 0,
+
+            "output_tokens":
+                usage.total_output_tokens
+                if usage else 0,
+
+            "total_tokens":
+                usage.total_tokens
+                if usage else 0
         }
 
     except Exception as exc:
 
         print("Gemini API Error:", exc)
 
-        return f"Gemini API 呼叫失敗：{exc}"
+        return {
+        "answer":
+            f"Gemini API 呼叫失敗：{exc}",
+
+        "input_tokens": 0,
+        "thinking_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+    }
  
  
 # ========================================================= 
