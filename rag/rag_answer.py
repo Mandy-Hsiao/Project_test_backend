@@ -3,8 +3,10 @@ from pathlib import Path
  
 from dotenv import load_dotenv 
 from openai import OpenAI 
-from pinecone import Pinecone 
-from google import genai 
+from pinecone import Pinecone
+
+from rag.gemini_key_manager import create_gemini_interaction
+ 
  
  
 # ========================================================= 
@@ -33,8 +35,8 @@ AZURE_OPENAI_EMBEDDING_DEPLOYMENT = os.getenv(
     "AZURE_OPENAI_EMBEDDING_DEPLOYMENT" 
 ) 
  
-# Gemini 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") 
+
+
  
  
 # ========================================================= 
@@ -47,15 +49,7 @@ azure_client = OpenAI(
     base_url=f"{AZURE_OPENAI_ENDPOINT.rstrip('/')}/openai/v1/", 
 ) 
  
- 
-# ========================================================= 
-# 4. Gemini Client 
-# ========================================================= 
- 
-gemini_client = genai.Client( 
-    api_key=GEMINI_API_KEY 
-) 
- 
+
  
 # ========================================================= 
 # 5. Pinecone Client 
@@ -87,20 +81,33 @@ def get_embedding(text: str):
 # 7. Gemini LLM
 # =========================================================
 
-def ask_gemini_llm(question: str, context: str) -> str:
+def ask_gemini_llm(
+    question: str,
+    context: str
+) -> str:
 
     prompt = f"""
 你是兆豐證券資訊部 SOP AI 助教。
 
-請嚴格根據提供的 SOP 內容回答使用者問題。
+你會收到多段從公司SOP資料庫中檢索出來的文件片段，以及使用者的問題。
 
-規則：
+請依照以下步驟處理：
+1. 逐一檢視每段檢索到的內容，判斷是否包含與問題「直接相關」或「可合理推導」的資訊。
+   - 直接相關：文件明確提到問題所問的流程、規定、數值、條件。
+   - 可合理推導：文件雖未逐字對應問題措辞，但描述的情境、流程步驟、
+     適用範圍等可以合理回答問題。
+2. 只有在「所有檢索片段都與問題完全無關」的情況下，才回答：
+   「目前資料庫中查無與此問題直接相關的SOP資訊，建議聯繫OO部門確認。」
+3. 若片段中僅有「部分」相關資訊，仍應根據可用內容回答，並註明：
+   「以下回答依據現有SOP片段整理，若涉及尚未提及的細節，建議進一步確認。」
+4. 禁止在檢索片段中含有相關關鍵字或敘述時，直接回覆「沒有相關資訊」。
 
-1. 不得自行補充 SOP 中不存在的資訊。
-2. 如果 SOP 中沒有足夠資訊回答就不要亂講。
-3. 使用繁體中文。
-4. 回答清楚、簡潔、正式。
-5. 完整保留 SOP 中的重要資訊。
+回答時請標示資訊確定程度：
+- 【明確依據】：SOP文件中有直接對應的敘述
+- 【推論整理】：根據多段SOP內容綜合判斷
+- 【建議確認】：資料庫中僅有部分相關資訊，需人工複核的部分
+
+不要因為某部分不確定，就整體判定為「查無相關資料」。
 
 ========================
 
@@ -121,15 +128,27 @@ def ask_gemini_llm(question: str, context: str) -> str:
 
     try:
 
-        interaction = gemini_client.interactions.create(
-            model="gemini-3.6-flash",
-            input=prompt
+        interaction = create_gemini_interaction(
+            prompt=prompt,
+            model="gemini-3.6-flash"
         )
 
         if not interaction.output_text:
-            return "Gemini 未回傳有效回答。"
-
-        return interaction.output_text.strip()
+                    return {
+                        "answer": "Gemini 未回傳有效回答。",
+                        "input_tokens": 0,
+                        "output_tokens": 0,
+                        "total_tokens": 0
+                    }
+        
+        usage = interaction.usage
+        
+        return {
+            "answer": interaction.output_text.strip(),
+            "input_tokens": usage.total_input_tokens if usage else 0,
+            "output_tokens": usage.total_output_tokens if usage else 0,
+            "total_tokens": usage.total_tokens if usage else 0
+        }
 
     except Exception as exc:
 
@@ -175,7 +194,7 @@ def get_rag_answer(question: str) -> str:
             namespace=PINECONE_NAMESPACE,
             #使用者問題的向量交給 Pinecone，請 Pinecone 找出與它最接近的向量。 
             vector=query_embedding, 
-            top_k=9, 
+            top_k=3, 
             include_metadata=True 
         ) 
  

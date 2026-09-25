@@ -3,9 +3,12 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from pydantic import BaseModel
-from google import genai
 
-from rag.rag_answer_simple import get_rag_answer
+     
+from rag.rag_answer import get_rag_answer
+
+from rag.gemini_key_manager import create_gemini_interaction
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENV_PATH = BASE_DIR / ".env"
@@ -30,27 +33,31 @@ app = FastAPI(
 )
 
 
-# =========================================================
-# 2. Gemini API Key
-# =========================================================
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+#Test
 
-print("GEMINI KEY FOUND =", bool(GEMINI_API_KEY))
+@app.get("/api/gemini-test")
+def gemini_test():
 
-if not GEMINI_API_KEY:
-    raise RuntimeError(
-        f"找不到 GEMINI_API_KEY，目前尋找位置：{ENV_PATH}"
-    )
+    try:
 
+        interaction = create_gemini_interaction(
+            prompt="請只回答：Gemini 測試成功",
+            model="gemini-3.6-flash"
+        )
 
-# =========================================================
-# 3. Gemini Client
-# =========================================================
+        return {
+            "status": "ok",
+            "answer": interaction.output_text
+        }
 
-gemini_client = genai.Client(
-    api_key=GEMINI_API_KEY
-)
+    except Exception as exc:
+
+        return {
+            "status": "error",
+            "error": str(exc)
+        }
+
 
 
 # =========================================================
@@ -61,55 +68,7 @@ class QuestionRequest(BaseModel):
     question: str
 
 
-# =========================================================
-# 5. Gemini
-# =========================================================
 
-def ask_gemini(question: str) -> str:
-
-    question = question.strip()
-
-    if not question:
-        return "請輸入問題。"
-
-    prompt = f"""
-你是兆豐證券資訊部 SOP AI 助教。
-
-目前這是系統測試版本，尚未串接 SOP 資料庫。
-
-請依照一般資訊協助回答使用者問題。
-
-規則：
-
-1. 使用繁體中文。
-2. 回答清楚、簡潔、正式。
-3. 如果問題資訊不足，請說明需要哪些資訊。
-4. 不要假裝已經查詢 SOP 或公司內部資料。
-
-【使用者問題】
-
-{question}
-
-請直接回答。
-""".strip()
-
-    try:
-
-        interaction = gemini_client.interactions.create(
-            model="gemini-3.6-flash",
-            input=prompt
-        )
-
-        if not interaction.output_text:
-            return "Gemini 未回傳有效回答。"
-
-        return interaction.output_text.strip()
-
-    except Exception as exc:
-
-        print("Gemini API Error:", exc)
-
-        return f"Gemini API 呼叫失敗：{exc}"
 
 
 # =========================================================
