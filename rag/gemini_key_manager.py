@@ -511,7 +511,11 @@ def create_gemini_interaction(
             _current_key_index = (
                 key_index
             )
-
+            
+            thoughts_tokens = usage_metadata.get(
+                "thoughtsTokenCount",
+                0
+            )
 
             print(
                 f"✅ Gemini API Key "
@@ -526,6 +530,10 @@ def create_gemini_interaction(
             print(
                 f"Output Tokens："
                 f"{output_tokens}"
+            )
+            
+            print(
+                f"Thinking Tokens：{thoughts_tokens}"
             )
 
             print(
