@@ -26,7 +26,7 @@ ENV_PATH = (
 JSON_PATH = (
     BASE_DIR
     / "output"
-    / "parent_child_chunks.json"
+    / "semantic_chunks.json"
 )
 
 load_dotenv(
@@ -159,169 +159,53 @@ def create_embedding(text):
 
 
 # ============================================================
-# 7. 將 Child 轉成 Pinecone Vector
+# 7. 將 Semantic Chunk 轉成 Pinecone Vector
 # ============================================================
 
-def child_to_vector(child):
-
-    text = child["text"]
-    
-    #導入embedding模型向量化
-    embedding = create_embedding(
-        text
-    )
-
+def chunk_to_vector(chunk):
+    text = chunk["text"]
+    embedding = create_embedding(text)
     metadata = {
-
-        "child_id":
-            child["child_id"],
-
-        "parent_id":
-            child["parent_id"],
-
-        "file_name":
-            child["file_name"],
-
-        "storage_path":
-            child["storage_path"],
-
-        "page":
-            child["page"],
-
-        "section_title":
-            child.get(
-                "section_title",
-                ""
-            ),
-
-        "content_type":
-            child.get(
-                "content_type",
-                "text"
-            ),
-
-        "text":
-            text
+        "chunk_id": chunk["chunk_id"],
+        "file_name": chunk["file_name"],
+        "storage_path": chunk["storage_path"],
+        "page": chunk["page"],
+        "section_title": chunk.get("section_title", ""),
+        "content_type": chunk.get("content_type", "text"),
+        "text": text,
     }
-
-    vector = {
-
-        "id":
-            child["child_id"],
-
-        "values":
-            embedding,
-
-        "metadata":
-            metadata
-    }
-
-    return vector
+    return {"id": chunk["chunk_id"], "values": embedding, "metadata": metadata}
 
 
 # ============================================================
 # 8. Upload
 # ============================================================
 
-#總Child召回數回傳
 def upload_all():
-
     data = load_chunks()
-    seen_ids = set()
-    for item in data:
-
-        for child in item["children"]:
-
-            child_id = (
-                child["child_id"]
-            )
-
-            if child_id in seen_ids:
-
-                raise ValueError(
-                    f"發現重複 child_id："
-                    f"{child_id}"
-                )
-
-            seen_ids.add(
-                child_id
-            )
-
-    print(
-        f"Child ID 檢查完成："
-        f"{len(seen_ids)} 個 ID，無重複"
-    )
-    
-    
-    vectors = []
-
-    total_children = sum(
-        len(item["children"])
+    PINECONE_NAMESPACE = os.getenv("PINECONE_NAMESPACE")
+    if not PINECONE_NAMESPACE:
+        raise ValueError("請設定 PINECONE_NAMESPACE，並與 rag_answer.py 使用相同值")
+    if not isinstance(data, list) or any(
+        not isinstance(item, dict) or not item.get("chunk_id") or
+        not isinstance(item.get("text"), str) or not item["text"].strip() or
+        not all(key in item for key in ("file_name", "storage_path", "page"))
         for item in data
-    )
-
-    print(
-        f"找到 {total_children} 個 Child Chunk"
-    )
-
-    processed = 0
-#Child 一個一個拿出來，呼叫剛才的child_to_vector()做 Embedding，
-# 最後把產生的 Vector 暫存在 vectors 清單裡
-    for item in data:
-
-        children = item[
-            "children"
-        ]
-
-        for child in children:
-
-            processed += 1
-
-            print(
-                f"[{processed}/{total_children}] "
-                f"Embedding："
-                f"{child['child_id']}"
-            )
-
-            vector = (
-                child_to_vector(
-                    child
-                )
-            )
-
-            vectors.append(
-                vector
-            )
-
-            # 每 50 筆送一次 Pinecone
-            if len(vectors) >= 50:
-
-                index.upsert(
-                    vectors=vectors,
-                    namespace="sop-child"
-                )
-
-                print(
-                    f"已上傳 {len(vectors)} 筆"
-                )
-
-                vectors = []
-
-    # 最後不足 50 筆
+    ):
+        raise ValueError("JSON 必須為單層 Semantic Chunk 陣列，請重新執行 chunk_PDF.py")
+    print(f"找到 {len(data)} 個 Semantic Chunk")
+    vectors = []
+    for processed, item in enumerate(data, start=1):
+        print(f"[{processed}/{len(data)}] Embedding：{item['chunk_id']}")
+        vectors.append(chunk_to_vector(item))
+        if len(vectors) >= 50:
+            index.upsert(vectors=vectors, namespace=PINECONE_NAMESPACE)
+            print(f"已上傳 {len(vectors)} 筆")
+            vectors = []
     if vectors:
-
-        index.upsert(
-            vectors=vectors,
-            namespace="sop-child"
-        )
-
-        print(
-            f"最後上傳 {len(vectors)} 筆"
-        )
-
-    print(
-        "\nPinecone 上傳完成"
-    )
+        index.upsert(vectors=vectors, namespace=PINECONE_NAMESPACE)
+        print(f"最後上傳 {len(vectors)} 筆")
+    print("\nPinecone 上傳完成")
 
 
 # ============================================================

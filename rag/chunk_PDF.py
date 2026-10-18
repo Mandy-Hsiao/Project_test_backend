@@ -9,6 +9,7 @@ import re
 import json
 #UUID實際上沒用到
 import uuid
+import math
 #找路徑用
 from pathlib import Path
  
@@ -23,6 +24,7 @@ import tiktoken
 from dotenv import load_dotenv
 #建立Supabase Python 連線
 from supabase import create_client
+from openai import OpenAI
 
 
 # ============================================================
@@ -65,8 +67,7 @@ supabase = create_client(
 # 2. Tokenizer
 # ============================================================
 
-# 對 OpenAI / Azure OpenAI 常見模型而言，
-# cl100k_base 是相對安全的通用選擇。
+# 對 OpenAI / Azure OpenAI 常見模型而言
 TOKENIZER = tiktoken.get_encoding(
     "cl100k_base"
 )
@@ -134,10 +135,6 @@ def clean_text(text):
     return "\n".join(lines)
 
 
-# ============================================================
-# 4. 判斷一行是不是標題
-# ============================================================
-
 def is_heading(line):
     """
     使用規則判斷文字是否像 SOP 標題。
@@ -204,13 +201,9 @@ def is_heading(line):
     return False
 
 
-# ============================================================
-# 5. 將每頁文字切成 Section
-# ============================================================
-
 def split_page_into_sections(text):
     """
-    根據標題與段落切分。
+    清理頁面文字，標題只作為 metadata；不依標題切塊。
 
     回傳：
     [
@@ -228,443 +221,190 @@ def split_page_into_sections(text):
     current_heading = ""
     current_lines = []
 
+    # 同頁內容先保留在一起，避免短行／PDF 換行搶先切斷語意。
+    # 第一個標題僅用於 metadata，實際切點交給 embedding 決定。
     for line in lines:
-
         line = line.strip()
-
-        if not line:
+        if not line or is_page_number(line) or is_export_datetime(line):
             continue
-
-        if is_heading(line):
-
-            # 前面已有內容
-            if current_lines:
-
-                sections.append({
-                    "heading": current_heading,
-                    "text": "\n".join(
-                        current_lines
-                    )
-                })
-
-                current_lines = []
-
+        if not current_heading and is_heading(line):
             current_heading = line
-
-            current_lines.append(line)
-
-        else:
-
-            current_lines.append(line)
+        current_lines.append(line)
 
     if current_lines:
-
         sections.append({
             "heading": current_heading,
-            "text": "\n".join(
-                current_lines
-            )
+            "text": "\n".join(current_lines)
         })
 
     return sections
 
 
-# ============================================================
-# 6. Recursive Token Chunker
-# ============================================================
+# 語意切点分位數；只依語意距離分塊，不設定固定長度或 overlap。
+SEMANTIC_BREAKPOINT_PERCENTILE = 90
+embedding_client = None
 
-def recursive_token_split(
-    text,
-    max_tokens=350,
-    overlap_tokens=50
-):
+def get_semantic_embeddings(parts):
+    """沿用 build_db.py 的 Azure deployment，分批取得句子向量。"""
+    global embedding_client
+    if embedding_client is None:
+        AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
+        AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
+        AZURE_OPENAI_EMBEDDING_DEPLOYMENT = os.getenv(
+            "AZURE_OPENAI_EMBEDDING_DEPLOYMENT"
+        )
+        if not all((AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY,
+                    AZURE_OPENAI_EMBEDDING_DEPLOYMENT)):
+            raise ValueError("Semantic Chunking 需要既有的 Azure Embedding 三項 .env 設定")
+        embedding_client = OpenAI(
+            api_key=AZURE_OPENAI_API_KEY,
+            base_url=AZURE_OPENAI_ENDPOINT.rstrip("/") + "/openai/v1/"
+        )
+
+    embeddings = []
+    for start in range(0, len(parts), 32):
+        response = embedding_client.embeddings.create(
+            model=os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT"),
+            input=parts[start:start + 32]
+        )
+        data = sorted(response.data, key=lambda item: item.index)
+        if [item.index for item in data] != list(range(len(parts[start:start + 32]))):
+            raise ValueError("Embedding 回傳筆數或順序不符，停止切塊")
+        embeddings.extend(item.embedding for item in data)
+    if any(not vector or not all(math.isfinite(value) for value in vector)
+           or not any(vector) for vector in embeddings):
+        raise ValueError("Embedding 向量無效，停止切塊")
+    if len({len(vector) for vector in embeddings}) != 1:
+        raise ValueError("Embedding 向量維度不一致，停止切塊")
+    return embeddings
+
+
+# 地址、電話、網址等精確資料不適合只靠語意相似度切割。
+# 先保護含精確資訊的行及其前後標籤，避免「分公司名稱」與「地址」分離。
+ADDRESS_RE = re.compile(
+    r"(?:地址|住址|所在地|營業處所|辦公地點|通訊地址|聯絡地址|郵遞區號|"
+    r"\d{3,6}\s*[^\n]{0,35}(?:路|街|大道|巷|弄|號|樓)|"
+    r"(?:縣|市|區|鄉|鎮|村|里)[^\n]{0,45}(?:路|街|大道|巷|弄|號|樓))"
+)
+EXACT_RE = re.compile(r"(?:地址|電話|傳真|分機|郵遞區號|統編|網址|https?://|www\.)", re.I)
+ENTITY_RE = re.compile(r"(?:分公司|分行|營業部|服務處|辦公室|總公司|總部|據點|中心|機房|部門|單位|門市)")
+
+
+def extract_exact_fields(text):
+    """保留原文精確欄位；不推測或補完缺漏的地址。"""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    addresses = []
+    for line in lines:
+        if ADDRESS_RE.search(line):
+            addresses.append(line)
+    return list(dict.fromkeys(addresses))
+
+
+def protect_exact_lines(text):
+    """將名稱 + 地址/電話等資訊合併為不可分割的語意候選段落。"""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    groups = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if EXACT_RE.search(line) or ADDRESS_RE.search(line):
+            # 向前帶入緊鄰的單位名稱，避免檢索只命中地址卻不知道是哪個單位。
+            if groups and ENTITY_RE.search(groups[-1]) and len(groups[-1]) <= 100:
+                line = groups.pop() + "\n" + line
+            # 同一筆資料連續出現的地址/電話/郵遞區號不拆散。
+            while i + 1 < len(lines) and (EXACT_RE.search(lines[i + 1]) or ADDRESS_RE.search(lines[i + 1])):
+                i += 1
+                line += "\n" + lines[i]
+            groups.append(line)
+        else:
+            groups.append(line)
+        i += 1
+    return groups
+
+
+def split_semantic_candidates(text):
+    """一般敘述按句分割；精確資料整組保留。"""
+    candidates = []
+    for group in protect_exact_lines(text):
+        if EXACT_RE.search(group) or ADDRESS_RE.search(group):
+            candidates.append(group)
+        else:
+            candidates.extend(
+                part.strip() for part in re.findall(
+                    r"[^。！？!?；;]+(?:[。！？!?；;]+|$)", group
+                ) if part.strip()
+            )
+    return candidates
+
+
+def semantic_token_split(text):
+    """以相鄰句子的 cosine distance 決定單層 chunk 邊界。
+
+    換行和標點僅提供句子候選；不使用遞迴、長度切塊或 overlap。
+    單句或單一語意區段可超過舊版 350/1000 token，且不會強制截斷。
     """
-    Recursive Token Chunking。
-
-    優先依：
-    段落
-    ↓
-    換行
-    ↓
-    句號
-    ↓
-    逗號
-    ↓
-    token 強制切割
-    """
-
-    separators = [
-        "\n\n",
-        "\n",
-        "。",
-        "！",
-        "？",
-        "；",
-        "，",
-        " "
-    ]
-
-    return recursive_split_by_separator(
-        text=text,
-        separators=separators,
-        max_tokens=max_tokens,
-        overlap_tokens=overlap_tokens
-    )
-
-
-def recursive_split_by_separator(
-    text,
-    separators,
-    max_tokens,
-    overlap_tokens
-):
-
     text = text.strip()
-
     if not text:
         return []
-
-    # 已符合限制
-    if count_tokens(text) <= max_tokens:
-        return [text]
-
-    # 所有 separator 都用完
-    if not separators:
-
-        return force_token_split(
-            text,
-            max_tokens,
-            overlap_tokens
+    separators = r"[^。！？!?；;\n]+(?:[。！？!?；;]+|\n+|$)|[。！？!?；;]+"
+    parts = split_semantic_candidates(text)
+    if len(parts) <= 1:
+        return parts
+    embeddings = get_semantic_embeddings(parts)
+    distances = []
+    for index in range(len(embeddings) - 1):
+        left, right = embeddings[index:index + 2]
+        similarity = sum(a * b for a, b in zip(left, right)) / (
+            math.sqrt(sum(a * a for a in left)) *
+            math.sqrt(sum(b * b for b in right))
         )
-
-    separator = separators[0]
-
-    parts = text.split(separator)
-
-    # 如果根本切不開&&&
-    if len(parts) == 1:
-
-        return recursive_split_by_separator(
-            text=text,
-            separators=separators[1:],
-            max_tokens=max_tokens,
-            overlap_tokens=overlap_tokens
-        )
-
+        distances.append(1 - max(-1.0, min(1.0, similarity)))
+    values = sorted(distances)
+    position = (len(values) - 1) * SEMANTIC_BREAKPOINT_PERCENTILE / 100
+    lower = int(position)
+    upper = min(lower + 1, len(values) - 1)
+    threshold = values[lower] + (values[upper] - values[lower]) * (position - lower)
+    varying_distances = max(distances) - min(distances) > 1e-9
     chunks = []
-
-    current_chunk = ""
-
-    for part in parts:
-
-        part = part.strip()
-
-        if not part:
-            continue
-
-        if current_chunk:
-
-            candidate = (
-                current_chunk
-                + separator
-                + part
-            )
-
-        else:
-
-            candidate = part
-
-        # 還沒超過 token 上限
-        if (
-            count_tokens(candidate)
-            <= max_tokens
-        ):
-
-            current_chunk = candidate
-
-        else:
-
-            # 儲存目前 chunk
-            if current_chunk:
-
-                if (
-                    count_tokens(current_chunk)
-                    <= max_tokens
-                ):
-
-                    chunks.append(
-                        current_chunk
-                    )
-
-                else:
-
-                    sub_chunks = (
-                        recursive_split_by_separator(
-                            text=current_chunk,
-                            separators=separators[1:],
-                            max_tokens=max_tokens,
-                            overlap_tokens=overlap_tokens
-                        )
-                    )
-
-                    chunks.extend(
-                        sub_chunks
-                    )
-
+    current_chunk = parts[0]
+    for index, part in enumerate(parts[1:], start=1):
+        # 地址段落之前的單位名稱不可被語意斷點切開。
+        protect_boundary = bool(
+            (ADDRESS_RE.search(part) or EXACT_RE.search(part))
+            and ENTITY_RE.search(current_chunk.split("\n")[-1])
+            and len(current_chunk) <= 160
+        )
+        if varying_distances and distances[index - 1] >= threshold and not protect_boundary:
+            chunks.append(current_chunk)
             current_chunk = part
-
-    # 最後一段
-    if current_chunk:
-
-        if (
-            count_tokens(current_chunk)
-            <= max_tokens
-        ):
-
-            chunks.append(
-                current_chunk
-            )
-
         else:
-
-            chunks.extend(
-                recursive_split_by_separator(
-                    text=current_chunk,
-                    separators=separators[1:],
-                    max_tokens=max_tokens,
-                    overlap_tokens=overlap_tokens
-                )
-            )
-
-    return add_token_overlap(
-        chunks,
-        overlap_tokens
-    )
-
-
-# ============================================================
-# 7. Token 強制切割
-# ============================================================
-
-def force_token_split(
-    text,
-    max_tokens,
-    overlap_tokens
-):
-
-    token_ids = TOKENIZER.encode(
-        text
-    )
-
-    chunks = []
-
-    start = 0
-
-    step = (
-        max_tokens
-        - overlap_tokens
-    )
-
-    if step <= 0:
-        raise ValueError(
-            "overlap_tokens 必須小於 max_tokens"
-        )
-
-    while start < len(token_ids):
-
-        end = (
-            start
-            + max_tokens
-        )
-
-        chunk_tokens = (
-            token_ids[start:end]
-        )
-
-        chunk_text = (
-            TOKENIZER.decode(
-                chunk_tokens
-            )
-        )
-
-        chunks.append(
-            chunk_text.strip()
-        )
-
-        start += step
-
+            current_chunk += "\n" + part
+    chunks.append(current_chunk)
     return chunks
 
 
-# ============================================================
-# 8. Child overlap
-# ============================================================
-
-def add_token_overlap(
-    chunks,
-    overlap_tokens
-):
-    """
-    在 Child Chunk 之間保留少量 token overlap
-    """
-
-    if (
-        overlap_tokens <= 0
-        or len(chunks) <= 1
-    ):
-        return chunks
-
-    result = []
-
-    previous_tokens = []
-
-    for index, chunk in enumerate(chunks):
-
-        current_tokens = (
-            TOKENIZER.encode(chunk)
-        )
-
-        if index == 0:
-
-            result.append(chunk)
-
-        else:
-
-            overlap = (
-                previous_tokens[
-                    -overlap_tokens:
-                ]
-            )
-
-            merged_tokens = (
-                overlap
-                + current_tokens
-            )
-
-            merged_text = (
-                TOKENIZER.decode(
-                    merged_tokens
-                )
-            )
-
-            result.append(
-                merged_text.strip()
-            )
-
-        previous_tokens = (
-            current_tokens
-        )
-
-    return result
-
-
-# ============================================================
-# 9. 建立 Parent / Child
-# ============================================================
-def create_parent_child_chunks(
-    section_text,
-    heading,
-    file_name,
-    storage_path,
-    page_number,
-    section_index,
-    parent_max_tokens=1000,
-    child_max_tokens=350,
-    child_overlap_tokens=50
-):
-
+def create_semantic_chunks(section_text, heading, file_name, storage_path,
+                           page_number, section_index):
     results = []
-
-    parent_parts = (
-        recursive_token_split(
-            section_text,
-            max_tokens=parent_max_tokens,
-            overlap_tokens=100
-        )
-    )
-
-    # 根據 PDF 的 storage_path 產生固定的來源 ID
-    source_id = uuid.uuid5(
-        uuid.NAMESPACE_URL,
-        storage_path
-    ).hex[:8]
-
-    for parent_index, parent_text in enumerate(
-        parent_parts
-    ):
-
-        # 建立唯一 Parent ID
-        parent_id = (
-            f"{Path(file_name).stem}"
-            f"_{source_id}"
-            f"_p{page_number}"
-            f"_s{section_index}"
-            f"_parent{parent_index + 1}"
-        )
-
-        # Child Chunk
-        child_chunks = (
-            recursive_token_split(
-                parent_text,
-                max_tokens=child_max_tokens,
-                overlap_tokens=child_overlap_tokens
-            )
-        )
-
-
-        parent_data = {
-            "parent_id": parent_id,
+    source_id = uuid.uuid5(uuid.NAMESPACE_URL, storage_path).hex[:8]
+    for chunk_index, text in enumerate(semantic_token_split(section_text), start=1):
+        chunk_id = (f"{Path(file_name).stem}_{source_id}_p{page_number}"
+                    f"_s{section_index}_semantic{chunk_index}")
+        results.append({
+            "chunk_id": chunk_id,
             "file_name": file_name,
             "storage_path": storage_path,
-            "page_start": page_number,
-            "page_end": page_number,
+            "page": page_number,
             "section_title": heading,
-            "token_count": count_tokens(
-                parent_text
-            ),
-            "text": parent_text
-        }
-
-        children = []
-
-        for child_index, child_text in enumerate(
-            child_chunks
-        ):
-
-            child_id = (
-                f"{parent_id}"
-                f"_child{child_index + 1}"
-            )
-
-            child_data = {
-                "child_id": child_id,
-                "parent_id": parent_id,
-                "file_name": file_name,
-                "storage_path": storage_path,
-                "page": page_number,
-                "section_title": heading,
-                "content_type": "text",
-                "token_count": count_tokens(
-                    child_text
-                ),
-                "text": child_text
-            }
-
-            children.append(
-                child_data
-            )
-
-        results.append({
-            "parent": parent_data,
-            "children": children
+            "content_type": "text",
+            "token_count": count_tokens(text),
+            "text": text,
+            # 下游 build_db.py 可將此欄位寫入 Pinecone metadata；
+            # 即使尚未修改 build_db，原始 text 仍完整保留地址。
+            "exact_address_lines": extract_exact_fields(text),
         })
-
     return results
 
-
-# ============================================================
-# 10. 解析單一 PDF
-# ============================================================
 def is_page_number(text):
 
     text = text.strip()
@@ -675,7 +415,8 @@ def is_page_number(text):
             text
         )
     )
-    
+
+
 def is_export_datetime(text):
 
     text = text.strip()
@@ -686,7 +427,8 @@ def is_export_datetime(text):
             text
         )
     )
-    
+
+
 def process_pdf(
     pdf_bytes,
     file_name,
@@ -700,174 +442,114 @@ def process_pdf(
 
     document_results = []
 
-    for page_index, page in enumerate(
-        doc
-    ):
-
-        page_number = (
-            page_index + 1
-        )
-
-        raw_text = page.get_text(
-            "text"
-        )
-
-        text = clean_text(
-            raw_text
-        )
-
-        # 完全沒文字
-        if not text:
-
-            print(
-                f"  第 {page_number} 頁無可讀文字，跳過"
-            )
-
-            continue
-
-        sections = (
-            split_page_into_sections(
-                text
-            )
-        )
-
-        print(
-            f"  第 {page_number} 頁："
-            f"{len(sections)} 個 section"
-        )
-
-        for section_index, section in enumerate(
-            sections,
-            start=1
+    try:
+        for page_index, page in enumerate(
+            doc
         ):
 
-            section_text = (
-                section["text"].strip()
+            page_number = (
+                page_index + 1
             )
 
-            # 沒有文字就跳過
-            if is_page_number(section_text):
+            raw_text = page.get_text(
+                "text"
+            )
+
+            text = clean_text(
+                raw_text
+            )
+
+            # 完全沒文字
+            if not text:
+
                 print(
-                    f"    跳過頁碼：{section_text}"
+                    f"  第 {page_number} 頁無可讀文字，跳過"
                 )
+
                 continue
 
-            if is_export_datetime(section_text):
-                print(
-                    f"    跳過日期：{section_text}"
+            sections = (
+                split_page_into_sections(
+                    text
                 )
-                continue
+            )
 
             print(
-                f"    Section {section_index}："
-                f"{section_text[:50]}"
+                f"  第 {page_number} 頁："
+                f"{len(sections)} 個 section"
             )
 
-            results = (
-                create_parent_child_chunks(
-                    section_text=section_text,
-                    heading=section["heading"],
-                    file_name=file_name,
-                    storage_path=storage_path,
-                    page_number=page_number,
-                    section_index=section_index
+            for section_index, section in enumerate(
+                sections,
+                start=1
+            ):
+
+                section_text = (
+                    section["text"].strip()
                 )
-            )
 
-            document_results.extend(
-                results
-            )
+                # 沒有文字就跳過
+                if is_page_number(section_text):
+                    print(
+                        f"    跳過頁碼：{section_text}"
+                    )
+                    continue
 
-    doc.close()
+                if is_export_datetime(section_text):
+                    print(
+                        f"    跳過日期：{section_text}"
+                    )
+                    continue
+
+                print(
+                    f"    Section {section_index}："
+                    f"{section_text[:50]}"
+                )
+
+                results = (
+                    create_semantic_chunks(
+                        section_text=section_text,
+                        heading=section["heading"],
+                        file_name=file_name,
+                        storage_path=storage_path,
+                        page_number=page_number,
+                        section_index=section_index
+                    )
+                )
+
+                document_results.extend(
+                    results
+                )
+
+    finally:
+        doc.close()
 
     return document_results
 
-
-# ============================================================
-# 11. Supabase Storage 遞迴掃描
-# ============================================================
-
-def list_pdf_files_recursive(
-    folder=""
-):
-    """
-    遞迴掃描 Bucket 內所有資料夾。
-
-    Supabase 官方 Python SDK 支援
-    list(path) 的寫法。
-    """
-
+def list_pdf_files(folder=""):
+    """用迭代方式掃描 Storage 資料夾；與文字切塊無關。"""
     pdf_files = []
-
-    items = (
-        supabase
-        .storage
-        .from_(BUCKET_NAME)
-        .list(
-            folder,
-            {
-                "limit": 1000,
-                "offset": 0
-            }
-        )
-    )
-
-    for item in items:
-
-        name = item.get(
-            "name"
-        )
-
-        if not name:
-            continue
-
-        if folder:
-
-            storage_path = (
-                f"{folder}/{name}"
+    folders = [folder]
+    while folders:
+        folder = folders.pop()
+        offset = 0
+        while True:
+            items = supabase.storage.from_(BUCKET_NAME).list(
+                folder, {"limit": 1000, "offset": offset}
             )
-
-        else:
-
-            storage_path = name
-
-        # Supabase folder 通常沒有 id
-        item_id = item.get(
-            "id"
-        )
-
-        if item_id is None:
-
-            # 當成資料夾繼續掃描
-            child_files = (
-                list_pdf_files_recursive(
-                    storage_path
-                )
-            )
-
-            pdf_files.extend(
-                child_files
-            )
-
-        else:
-
-            if name.lower().endswith(
-                ".pdf"
-            ):
-
-                pdf_files.append({
-                    "file_name": name,
-                    "storage_path": storage_path
-                })
-
+            for item in items:
+                name = item.get("name")
+                if not name:
+                    continue
+                storage_path = f"{folder}/{name}" if folder else name
+                if item.get("id") is None:
+                    folders.append(storage_path)
+                elif name.lower().endswith(".pdf"):
+                    pdf_files.append({"file_name": name, "storage_path": storage_path})
+            if len(items) < 1000:
+                break
+            offset += 1000
     return pdf_files
-
-
-
-
-# ============================================================
-# 12. 下載 PDF
-# ============================================================
 
 def download_pdf(
     storage_path
@@ -885,16 +567,10 @@ def download_pdf(
     return pdf_bytes
 
 
-
-
-# ============================================================
-# 13. 處理全部 PDF
-# ============================================================
-
 def process_all_pdfs():
 
     pdf_files = (
-        list_pdf_files_recursive()
+        list_pdf_files()
     )
 
     print(
@@ -944,24 +620,7 @@ def process_all_pdfs():
                 )
             )
 
-            parent_count = len(
-                results
-            )
-
-            child_count = sum(
-                len(
-                    item["children"]
-                )
-                for item in results
-            )
-
-            print(
-                f"Parent：{parent_count}"
-            )
-
-            print(
-                f"Child：{child_count}"
-            )
+            print(f"Semantic Chunk：{len(results)}")
 
             all_results.extend(
                 results
@@ -973,154 +632,32 @@ def process_all_pdfs():
                 f"處理 {storage_path} "
                 f"發生錯誤：{e}"
             )
+            # 不儲存不完整結果，避免 Embedding 失敗後覆蓋原 JSON。
+            raise
 
     return all_results
 
 
-# ============================================================
-# 14. 儲存 JSON
-# ============================================================
-
-def save_results(
-    results
-):
-
-    output_path = (
-        OUTPUT_DIR
-        / "parent_child_chunks.json"
-    )
-
-    with open(
-        output_path,
-        "w",
-        encoding="utf-8"
-    ) as f:
-
-        json.dump(
-            results,
-            f,
-            ensure_ascii=False,
-            indent=2
-        )
-
-    print(
-        f"\nChunk 資料已儲存："
-        f"{output_path}"
-    )
+def save_results(results):
+    output_path = OUTPUT_DIR / "semantic_chunks.json"
+    temporary_path = output_path.with_suffix(".json.tmp")
+    with open(temporary_path, "w", encoding="utf-8") as f:
+        json.dump(results, f, ensure_ascii=False, indent=2)
+    temporary_path.replace(output_path)
+    print(f"\nChunk 資料已儲存：{output_path}")
 
 
-# ============================================================
-# 15. 顯示測試結果
-# ============================================================
+def print_preview(results, limit=3):
+    for item in results[:limit]:
+        print("\nChunk ID：", item["chunk_id"])
+        print("檔案：", item["file_name"])
+        print("頁碼：", item["page"])
+        print("Tokens：", item["token_count"])
+        print("Text：", item["text"][:300])
 
-def print_preview(
-    results,
-    limit=3
-):
-
-    print("\n" + "=" * 70)
-    print("Chunk Preview")
-    print("=" * 70)
-
-    count = 0
-
-    for item in results:
-
-        parent = item["parent"]
-
-        print(
-            "\nParent ID：",
-            parent["parent_id"]
-        )
-
-        print(
-            "檔案：",
-            parent["file_name"]
-        )
-
-        print(
-            "頁碼：",
-            parent["page_start"]
-        )
-
-        print(
-            "Section：",
-            parent["section_title"]
-        )
-
-        print(
-            "Parent Tokens：",
-            parent["token_count"]
-        )
-
-        for child in item["children"]:
-
-            print(
-                "\n  Child ID：",
-                child["child_id"]
-            )
-
-            print(
-                "  Tokens：",
-                child["token_count"]
-            )
-
-            print(
-                "  Text："
-            )
-
-            print(
-                "  ",
-                child["text"][:300]
-            )
-
-        count += 1
-
-        if count >= limit:
-            break
-
-
-# ============================================================
-# 16. Main
-# ============================================================
 
 if __name__ == "__main__":
-
-    results = (
-        process_all_pdfs()
-    )
-
-    parent_count = len(
-        results
-    )
-
-    child_count = sum(
-        len(
-            item["children"]
-        )
-        for item in results
-    )
-
-    print("\n" + "=" * 70)
-
-    print(
-        f"全部處理完成"
-    )
-
-    print(
-        f"Parent 總數："
-        f"{parent_count}"
-    )
-
-    print(
-        f"Child 總數："
-        f"{child_count}"
-    )
-
-    save_results(
-        results
-    )
-
-    print_preview(
-        results
-    )
+    results = process_all_pdfs()
+    print(f"\n全部處理完成，Semantic Chunk 總數：{len(results)}")
+    save_results(results)
+    print_preview(results)
