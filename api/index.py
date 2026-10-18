@@ -10,6 +10,32 @@ from rag.rag_answer import get_rag_answer
 from rag.gemini_key_manager import create_gemini_interaction
 
 
+
+
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://project-test-tau-self.vercel.app",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type"],
+)
+
+# ③ 定義請求格式
+class ChatRequest(BaseModel):
+    question: str
+
+
+
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENV_PATH = BASE_DIR / ".env"
 
