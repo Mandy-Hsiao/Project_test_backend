@@ -14,23 +14,7 @@ from rag.gemini_key_manager import create_gemini_interaction
 
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://project-test-tau-self.vercel.app",
-    ],
-    allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type"],
-)
-
-# ③ 定義請求格式
-class ChatRequest(BaseModel):
-    question: str
 
 
 
@@ -57,6 +41,25 @@ app = FastAPI(
     docs_url="/api/docs",
     openapi_url="/api/openapi.json"
 )
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://project-test-tau-self.vercel.app",
+    ],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ③ 定義請求格式
+class ChatRequest(BaseModel):
+    question: str
+
+
 
 
 
