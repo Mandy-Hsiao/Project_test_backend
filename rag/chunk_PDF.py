@@ -26,6 +26,11 @@ from dotenv import load_dotenv
 from supabase import create_client
 from openai import OpenAI
 
+try:
+    from .document_metadata import enrich_chunks
+except ImportError:  # python rag/chunk_PDF.py
+    from document_metadata import enrich_chunks
+
 
 # ============================================================
 # 1. 基本設定
@@ -524,7 +529,8 @@ def process_pdf(
     finally:
         doc.close()
 
-    return document_results
+    # 每份 PDF 產出後統一加入同一份文件的身分與前後 Chunk 連結。
+    return enrich_chunks(document_results)
 
 def list_pdf_files(folder=""):
     """用迭代方式掃描 Storage 資料夾；與文字切塊無關。"""

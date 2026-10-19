@@ -6,6 +6,11 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from pinecone import Pinecone
 
+try:
+    from .document_metadata import enrich_chunks
+except ImportError:  # python rag/build_db.py
+    from document_metadata import enrich_chunks
+
 
 # ============================================================
 # 1. 路徑 / .env
@@ -131,7 +136,7 @@ def load_chunks():
 
         data = json.load(f)
 
-    return data
+    return enrich_chunks(data)
 
 
 # ============================================================
@@ -163,17 +168,36 @@ def create_embedding(text):
 # ============================================================
 
 def chunk_to_vector(chunk):
+    """Metadata 記錄文件身分；向量文字也帶上文件標題以改善召回率。"""
     text = chunk["text"]
-    embedding = create_embedding(text)
+    title = chunk["document_title"]
+    content_for_embedding = (
+        f"文件標題：{title}\n"
+        f"文件類型：{chunk['document_type']}\n"
+        f"章節：{chunk.get('section_title') or ''}\n"
+        f"內容：{text}"
+    )
+    embedding = create_embedding(content_for_embedding)
     metadata = {
+        "schema_version": "document_v2",
         "chunk_id": chunk["chunk_id"],
         "file_name": chunk["file_name"],
         "storage_path": chunk["storage_path"],
+        "document_id": chunk["document_id"],
+        "document_title": title,
+        "document_type": chunk["document_type"],
+        "chunk_seq": chunk["chunk_seq"],
+        "document_chunk_count": chunk["document_chunk_count"],
         "page": chunk["page"],
-        "section_title": chunk.get("section_title", ""),
+        "section_title": chunk.get("section_title") or "",
         "content_type": chunk.get("content_type", "text"),
-        "text": text,
+        "text": text,  # 原文供引用，不在前面添加 Metadata
     }
+    # Pinecone Metadata 不接受 None，首尾沒有相鄰片段時省略欄位。
+    if chunk.get("prev_chunk_id"):
+        metadata["prev_chunk_id"] = chunk["prev_chunk_id"]
+    if chunk.get("next_chunk_id"):
+        metadata["next_chunk_id"] = chunk["next_chunk_id"]
     return {"id": chunk["chunk_id"], "values": embedding, "metadata": metadata}
 
 
@@ -193,7 +217,8 @@ def upload_all():
         for item in data
     ):
         raise ValueError("JSON 必須為單層 Semantic Chunk 陣列，請重新執行 chunk_PDF.py")
-    print(f"找到 {len(data)} 個 Semantic Chunk")
+    print(f"找到 {len(data)} 個 Semantic Chunk（{len({c['document_id'] for c in data})} 份文件）")
+    print(f"目標 Namespace：{PINECONE_NAMESPACE}（建議使用新 Namespace，避免混入舊版向量）")
     vectors = []
     for processed, item in enumerate(data, start=1):
         print(f"[{processed}/{len(data)}] Embedding：{item['chunk_id']}")
