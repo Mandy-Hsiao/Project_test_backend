@@ -262,7 +262,10 @@ def make_title(data: TitleRequest):
     try:
         interaction = create_gemini_interaction(
             prompt=prompt,
-            model="gemini-3.6-flash"
+            model="gemini-3.6-flash",
+            thinking_level="low",
+            max_output_tokens=100,
+            read_timeout=20,
         )
         title = _clean_title(interaction.output_text)
     except Exception as exc:
