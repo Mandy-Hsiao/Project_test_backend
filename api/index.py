@@ -264,7 +264,7 @@ def make_title(data: TitleRequest):
             prompt=prompt,
             model="gemini-3.6-flash",
             thinking_level="low",
-            max_output_tokens=100,
+            max_output_tokens=1024,
             read_timeout=20,
         )
         title = _clean_title(interaction.output_text)
