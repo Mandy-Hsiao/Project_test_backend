@@ -1,5 +1,4 @@
 import os
-import re
 from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -191,88 +190,6 @@ def chat(data: QuestionRequest):
     result = get_rag_answer(data.question)
 
     return result
-
-
-
-# =========================================================
-# 7.1 對話標題摘要（給左側討論串標題用）
-# =========================================================
-
-class TitleMessage(BaseModel):
-    role: str
-    content: str
-
-
-class TitleRequest(BaseModel):
-    messages: list[TitleMessage]
-
-
-def _clean_for_title(text: str, limit: int) -> str:
-    """移除【來源】標記與 Markdown 符號，並截短，避免浪費 token。"""
-    text = re.sub(r"[（(]?【來源】[^）)\n]*[）)]?", "", text or "")
-    text = re.sub(r"[#*`>]+", " ", text)
-    text = re.sub(r"\s+", " ", text).strip()
-    return text[:limit]
-
-
-def _clean_title(raw: str, max_len: int = 20) -> str:
-    title = (raw or "").strip().splitlines()[0] if (raw or "").strip() else ""
-    title = re.sub(r"^(標題|對話標題|Title)\s*[:：]\s*", "", title)
-    title = title.strip(" \t\"'「」『』《》。.，,！!？?")
-    return title[:max_len]
-
-
-@app.post("/api/title")
-def make_title(data: TitleRequest):
-    # 只取最近 12 則，避免對話太長
-    msgs = data.messages[-12:]
-
-    lines = []
-    for m in msgs:
-        is_user = m.role == "user"
-        text = _clean_for_title(m.content, 200 if is_user else 300)
-        if text:
-            lines.append(f"{'使用者' if is_user else 'AI'}：{text}")
-
-    first_user = next(
-        (_clean_for_title(m.content, 15) for m in data.messages if m.role == "user"),
-        "",
-    )
-    fallback = first_user or "新對話"
-
-    if not lines:
-        return {"title": fallback}
-
-    conversation = "\n".join(lines)
-    prompt = f"""
-請閱讀下方「使用者」與「AI」的對話，用繁體中文整理出整段對話的大意，並濃縮成一個對話標題。
-
-規則：
-1. 標題要概括整段對話在討論什麼，不是只複製第一個問題。
-2. 長度 8 到 15 個字，不要超過 20 字。
-3. 不要加標點符號、引號、「標題：」這類前綴。
-4. 只輸出標題本身，不要任何解釋。
-
-【對話內容】
-{conversation}
-
-標題：
-""".strip()
-
-    try:
-        interaction = create_gemini_interaction(
-            prompt=prompt,
-            model="gemini-3.6-flash",
-            thinking_level="low",
-            max_output_tokens=1024,
-            read_timeout=20,
-        )
-        title = _clean_title(interaction.output_text)
-    except Exception as exc:
-        print("Gemini Title Error:", exc)
-        title = ""
-
-    return {"title": title or fallback}
 
 
 @app.get("/api/test")

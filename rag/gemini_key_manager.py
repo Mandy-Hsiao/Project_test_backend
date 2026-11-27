@@ -1,5 +1,4 @@
 import os
-import time
 import hashlib
 
 from pathlib import Path
@@ -160,10 +159,7 @@ def extract_output_text(data):
 
 def create_gemini_interaction(
     prompt: str,
-    model: str = "gemini-3.6-flash",
-    thinking_level: str | None = None,
-    max_output_tokens: int = 4060,
-    read_timeout: float = READ_TIMEOUT,
+    model: str = "gemini-3.6-flash"
 ):
 
     global _current_key_index
@@ -250,24 +246,18 @@ def create_gemini_interaction(
 
             "temperature": 0.2,
 
-            "maxOutputTokens": max_output_tokens
+            "maxOutputTokens": 4060
 
         }
 
     }
-
-    # 小任務（標題、主題判斷）關閉/降低思考，避免模型花幾十秒在 thinking
-    if thinking_level:
-        payload["generationConfig"]["thinkingConfig"] = {
-            "thinkingLevel": thinking_level
-        }
 
 
     timeout = httpx.Timeout(
 
         connect=CONNECT_TIMEOUT,
 
-        read=read_timeout,
+        read=READ_TIMEOUT,
 
         write=WRITE_TIMEOUT,
 
@@ -329,8 +319,6 @@ def create_gemini_interaction(
         # ====================================================
         # 發送 Gemini Request
         # ====================================================
-
-        t_start = time.time()
 
         try:
 
@@ -410,10 +398,6 @@ def create_gemini_interaction(
 
         status_code = (
             response.status_code
-        )
-
-        print(
-            f"Gemini 耗時：{time.time() - t_start:.1f} 秒"
         )
 
 
@@ -629,25 +613,6 @@ def create_gemini_interaction(
             print(
                 "➡️ 自動切換下一把 Key"
             )
-
-            continue
-
-
-        # ====================================================
-        # 模型不支援 thinkingConfig：移除後用下一把 Key 重試
-        # ====================================================
-
-        if (
-            status_code == 400
-            and "thinkingConfig" in payload["generationConfig"]
-            and "think" in str(error_data).lower()
-        ):
-
-            print(
-                "⚠️ 模型不接受 thinkingConfig，移除後重試"
-            )
-
-            del payload["generationConfig"]["thinkingConfig"]
 
             continue
 
